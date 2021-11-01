@@ -1,10 +1,24 @@
+/**
+ * leading javadoc
+ */
+
 import com.github.javaparser.utils.CodeGenerationUtils;
 import com.github.javaparser.utils.SourceRoot;
 
+/**
+ * class javadoc
+ */
 public class Blabla {
 
+    /**
+     * method javadoc
+     * @param buf
+     * @param opcode
+     */
     private final void method1013(StreamBuffer buf, int opcode) {
-        if (opcode != 1) {
+        // line comment
+        if (opcode /*block comment left of equal*/ != /*block comment right of equal*/ 1) // trailing line comment
+        {
             if (opcode != 2) {
                 if (opcode != 4) {
                     do {
