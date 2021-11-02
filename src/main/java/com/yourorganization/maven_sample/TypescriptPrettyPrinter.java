@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 
 public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
     final Optional<PackageDeclaration> packageDeclaration;
-    private boolean inMembers = false;
+    private boolean inMethod = true;
     private Optional<Type> curType = null;
 
     public TypescriptPrettyPrinter(final PrinterConfiguration configuration, final Optional<PackageDeclaration> packageDeclaration) {
@@ -41,6 +41,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
 
     @Override
     public void visit(final MethodDeclaration n, final Void arg) {
+        this.inMethod = true;
         Log.info("    " + (this.packageDeclaration.isPresent() ? packageDeclaration.get().getName() : "<no package>") + "." + n.getName());
         this.printOrphanCommentsBeforeThisChildNode(n);
         this.printComment(n.getComment(), arg);
@@ -95,18 +96,17 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
             this.printer.print(" ");
             ((BlockStmt) n.getBody().get()).accept(this, arg);
         }
+        this.inMethod = false;
     }
 
     protected void printMembers(final NodeList<BodyDeclaration<?>> members, final Void arg) {
         Iterator var3 = members.iterator();
-        this.inMembers = true;
         while(var3.hasNext()) {
             BodyDeclaration<?> member = (BodyDeclaration)var3.next();
             this.printer.println();
             member.accept(this, arg);
             this.printer.println();
         }
-        this.inMembers = false;
     }
 
     public void visit(final FieldDeclaration n, final Void arg) {
@@ -161,7 +161,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
                     .map(Modifier::getKeyword)
                     .map(Modifier.Keyword::asString)
                     .filter(
-                        s -> !this.inMembers || !s.equals("final") // https://www.typescriptlang.org/play told me "A class member cannot have the 'const' keyword."
+                        s -> this.inMethod || !s.equals("final") // https://www.typescriptlang.org/play told me "A class member cannot have the 'const' keyword."
                     )
                     .map(
                         s -> s.equals("final") ? "const" : s
@@ -228,6 +228,51 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
             this.printer.print(": ");
         }
         n.getType().accept(this, arg);
+    }
+
+    public void visit(final ConstructorDeclaration n, final Void arg) {
+        this.inMethod = true;
+        this.printOrphanCommentsBeforeThisChildNode(n);
+        this.printComment(n.getComment(), arg);
+        this.printMemberAnnotations(n.getAnnotations(), arg);
+        this.printModifiers(n.getModifiers());
+        this.printTypeParameters(n.getTypeParameters(), arg);
+        if (n.isGeneric()) {
+            this.printer.print(" ");
+        }
+
+        n.getName().accept(this, arg);
+        this.printer.print("(");
+        Iterator i;
+        if (!n.getParameters().isEmpty()) {
+            i = n.getParameters().iterator();
+
+            while(i.hasNext()) {
+                Parameter p = (Parameter)i.next();
+                p.accept(this, arg);
+                if (i.hasNext()) {
+                    this.printer.print(", ");
+                }
+            }
+        }
+
+        this.printer.print(")");
+        if (!Utils.isNullOrEmpty(n.getThrownExceptions())) {
+            this.printer.print(" throws ");
+            i = n.getThrownExceptions().iterator();
+
+            while(i.hasNext()) {
+                ReferenceType name = (ReferenceType)i.next();
+                name.accept(this, arg);
+                if (i.hasNext()) {
+                    this.printer.print(", ");
+                }
+            }
+        }
+
+        this.printer.print(" ");
+        n.getBody().accept(this, arg);
+        this.inMethod = false;
     }
 
     public void visit999(final VariableDeclarator n, final Void arg) {
