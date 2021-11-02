@@ -15,6 +15,7 @@ import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ReferenceType;
 import com.github.javaparser.ast.type.Type;
+import com.github.javaparser.ast.type.UnknownType;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.printer.DefaultPrettyPrinterVisitor;
 import com.github.javaparser.printer.configuration.ConfigurationOption;
@@ -209,6 +210,24 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
             ((Expression)n.getInitializer().get()).accept(this, arg);
         }
 
+    }
+
+    public void visit(final Parameter n, final Void arg) {
+        this.printOrphanCommentsBeforeThisChildNode(n);
+        this.printComment(n.getComment(), arg);
+        this.printAnnotations(n.getAnnotations(), false, arg);
+        this.printModifiers(n.getModifiers());
+        if (n.isVarArgs()) {
+            this.printAnnotations(n.getVarArgsAnnotations(), false, arg);
+            this.printer.print("...");
+        }
+
+        n.getName().accept(this, arg);
+
+        if (!(n.getType() instanceof UnknownType)) {
+            this.printer.print(": ");
+        }
+        n.getType().accept(this, arg);
     }
 
     public void visit999(final VariableDeclarator n, final Void arg) {
