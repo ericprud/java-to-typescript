@@ -41,7 +41,7 @@ public abstract class AbstractValidatingMethodHandler {
         this.resourceAccessor = resourceAccessor;
     }
 
-    protected DocumentResponse manageShapeTree(final ShapeTreeResource primaryResource, final ShapeTreeRequest shapeTreeRequest) throws ShapeTreeException {
+    protected DocumentResponse manageShapeTree(@Nullable final ShapeTreeResource primaryResource, @NotNull final ShapeTreeRequest shapeTreeRequest) throws ShapeTreeException {
 
         Optional<DocumentResponse> validationResponse = null;
         final ShapeTreeLocator updatedRootLocator = this.getShapeTreeLocatorFromRequest(shapeTreeRequest, primaryResource.getMetadataResourceFork());

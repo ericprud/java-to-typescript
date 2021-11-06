@@ -1,17 +1,26 @@
 package com.yourorganization.maven_sample;
 
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.expr.Name;
 import com.github.javaparser.ast.visitor.VoidVisitor;
+import com.github.javaparser.printer.SourcePrinter;
 import com.github.javaparser.printer.configuration.DefaultConfigurationOption;
 import com.github.javaparser.printer.configuration.DefaultPrinterConfiguration;
+import com.github.javaparser.printer.configuration.Indentation;
 import com.github.javaparser.utils.CodeGenerationUtils;
 import com.github.javaparser.utils.Log;
 import com.github.javaparser.utils.SourceRoot;
+
+import java.util.Map;
+import java.util.function.BiConsumer;
 
 /**
  * Some code that uses JavaParser.
  */
 public class JavaToTypescript {
+    private static final String JAVA_LIBRARY_NAME = "shapetrees-java";
+
     public static void main(String[] args) {
         // JavaParser has a minimal logging class that normally logs nothing.
         // Let's ask it to write to standard out:
@@ -27,18 +36,42 @@ public class JavaToTypescript {
         final String filename = "Blabla.java";
         CompilationUnit cu = sourceRoot.parse("", filename);
 
-        Log.info("Porting file " + dir + "/" + filename);
+        Log.info("Porting file " + dir + "/" + filename + ":");
 
         DefaultPrinterConfiguration configuration = new DefaultPrinterConfiguration();
         configuration.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.SPACE_AROUND_OPERATORS, false));
         configuration.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.PRINT_JAVADOC, true));
-//        configuration.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.INDENTATION, 4));
+        configuration.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.INDENTATION, new Indentation(Indentation.IndentType.SPACES, 2)));
         configuration.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.INDENT_CASE_IN_SWITCH, false));
         configuration.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.MAX_ENUM_CONSTANTS_TO_ALIGN_HORIZONTALLY, 7));
-//        configuration.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.END_OF_LINE_CHARACTER, new Indentation(Indentation.IndentType.SPACES, 4)));
+        configuration.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.END_OF_LINE_CHARACTER, "\n"));
         configuration.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.PRINT_COMMENTS, true));
 
+        final BiConsumer<SourcePrinter, Name> handlePackage = (final SourcePrinter printer, final Name packageName) -> {
+            printer.println("// Corresponding " + JAVA_LIBRARY_NAME + " package: " + packageName);
+        };
+        final BiConsumer<SourcePrinter, ImportDeclaration> handleImport = (final SourcePrinter printer, final ImportDeclaration importDecl) -> {
+            final Map<String, String> MY_MAP = Map.of("com.janeirodigital.shapetrees.core.enums", "../../core/enums", "com.janeirodigital.shapetrees.core", "../../core");
+
+            final String path = importDecl.getName().asString();
+            int iName = path.lastIndexOf('.');
+            final String pkg = path.substring(0, iName);
+            final String cls = path.substring(iName + 1);
+            if (importDecl.isStatic()) {
+//                printer.print("static ");
+            } else if (importDecl.isAsterisk()) {
+//                printer.print(".*");
+            } else if (path.startsWith("com.janeirodigital.shapetrees.core")) {
+                printer.println("import {  " + cls + " } from " + pkg + ";");
+            } else if (path.startsWith("com.janeirodigital.shapetrees.foo")) {
+                printer.println("// Corresponding " + JAVA_LIBRARY_NAME + " package: " + importDecl);
+            }
+        };
+
         TypescriptPrettyPrinter visitor = new TypescriptPrettyPrinter(configuration, cu.getPackageDeclaration());
+        visitor.setOnPackageDeclaration(handlePackage);
+        visitor.setOnImportDeclaration(handleImport);
+
         cu.accept((VoidVisitor) visitor, null);
         String s1 = visitor.toString();
         System.out.print(s1);

@@ -1,13 +1,11 @@
 //package com.github.javaparser.printer;
 package com.yourorganization.maven_sample;
 
-import com.github.javaparser.ast.Modifier;
-import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.PackageDeclaration;
+import com.github.javaparser.ast.*;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.Name;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.nodeTypes.NodeWithVariables;
 import com.github.javaparser.ast.stmt.BlockStmt;
@@ -18,31 +16,95 @@ import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.UnknownType;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.printer.DefaultPrettyPrinterVisitor;
+import com.github.javaparser.printer.SourcePrinter;
 import com.github.javaparser.printer.configuration.ConfigurationOption;
 import com.github.javaparser.printer.configuration.DefaultConfigurationOption;
 import com.github.javaparser.printer.configuration.DefaultPrinterConfiguration;
 import com.github.javaparser.printer.configuration.PrinterConfiguration;
-import com.github.javaparser.utils.Log;
 import com.github.javaparser.utils.PositionUtils;
 import com.github.javaparser.utils.Utils;
 
+
 import java.util.*;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
     final Optional<PackageDeclaration> packageDeclaration;
     private boolean inMethod = true;
     private Optional<Type> curType = null;
+    BiConsumer<SourcePrinter, Name> onPackageDeclaration = null;
+    BiConsumer<SourcePrinter, NodeList<ImportDeclaration>> onImportDeclarations = null;
+    BiConsumer<SourcePrinter, ImportDeclaration> onImportDeclaration = null;
 
     public TypescriptPrettyPrinter(final PrinterConfiguration configuration, final Optional<PackageDeclaration> packageDeclaration) {
-        super(configuration/*, new SourcePrinter(configuration)*/);
+        super(configuration);
         this.packageDeclaration = packageDeclaration;
+    }
+
+    public void setOnPackageDeclaration(final BiConsumer<SourcePrinter, Name> f) {
+        this.onPackageDeclaration = f;
+    }
+
+    public void setOnImportDeclarations(final BiConsumer<SourcePrinter, NodeList<ImportDeclaration>> f) {
+        this.onImportDeclarations = f;
+    }
+
+    public void setOnImportDeclaration(final BiConsumer<SourcePrinter, ImportDeclaration> f) {
+        this.onImportDeclaration = f;
+    }
+
+    public void visit(final CompilationUnit n, final Void arg) {
+        this.printOrphanCommentsBeforeThisChildNode(n);
+        this.printComment(n.getComment(), arg);
+
+        if (n.getParsed() == Node.Parsedness.UNPARSABLE) {
+            this.printer.println("???");
+        } else {
+            if (n.getPackageDeclaration().isPresent() && this.onPackageDeclaration != null) {
+                final Name packageName = ((PackageDeclaration) n.getPackageDeclaration().get()).getName();
+                onPackageDeclaration.accept(this.printer, packageName);
+            }
+
+            if (this.onImportDeclarations != null) {
+                this.onImportDeclarations.accept(this.printer, n.getImports());
+            } else {
+                n.getImports().accept(this, arg);
+            }
+            if (!n.getImports().isEmpty()) {
+                this.printer.println();
+            }
+
+            Iterator i = n.getTypes().iterator();
+
+            while(i.hasNext()) {
+                ((TypeDeclaration)i.next()).accept(this, arg);
+                this.printer.println();
+                if (i.hasNext()) {
+                    this.printer.println();
+                }
+            }
+
+            n.getModule().ifPresent((m) -> {
+                m.accept(this, arg);
+            });
+            this.printOrphanCommentsEnding(n);
+        }
+    }
+
+    public void visit(final ImportDeclaration n, final Void arg) {
+        this.printOrphanCommentsBeforeThisChildNode(n);
+        this.printComment(n.getComment(), arg);
+        if (this.onImportDeclaration != null) {
+            this.onImportDeclaration.accept(this.printer, n);
+        }
+        this.printOrphanCommentsEnding(n);
     }
 
     @Override
     public void visit(final MethodDeclaration n, final Void arg) {
         this.inMethod = true;
-        Log.info("    " + (this.packageDeclaration.isPresent() ? packageDeclaration.get().getName() : "<no package>") + "." + n.getName());
+//        Log.info("    " + (this.packageDeclaration.isPresent() ? packageDeclaration.get().getName() : "<no package>") + "." + n.getName());
         this.printOrphanCommentsBeforeThisChildNode(n);
         this.printComment(n.getComment(), arg);
         this.printMemberAnnotations(n.getAnnotations(), arg);
@@ -275,35 +337,6 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         this.inMethod = false;
     }
 
-    public void visit999(final VariableDeclarator n, final Void arg) {
-        this.printOrphanCommentsBeforeThisChildNode(n);
-        this.printComment(n.getComment(), arg);
-        n.getName().accept(this, arg);
-        n.findAncestor(NodeWithVariables.class).ifPresent((ancestor) -> {
-            ancestor.getMaximumCommonType().ifPresent((commonType) -> {
-                Type type = n.getType();
-                ArrayType arrayType = null;
-
-                for(int i = ((Type)commonType).getArrayLevel(); i < type.getArrayLevel(); ++i) {
-                    if (arrayType == null) {
-                        arrayType = (ArrayType)type;
-                    } else {
-                        arrayType = (ArrayType)arrayType.getComponentType();
-                    }
-
-                    this.printAnnotations(arrayType.getAnnotations(), true, arg);
-                    this.printer.print("[]");
-                }
-
-            });
-        });
-        if (n.getInitializer().isPresent()) {
-            this.printer.print(" = ");
-            ((Expression)n.getInitializer().get()).accept(this, arg);
-        }
-
-    }
-
     private void printOrphanCommentsBeforeThisChildNode(final Node node) {
         if (this.getOption(DefaultPrinterConfiguration.ConfigOption.PRINT_COMMENTS).isPresent()) {
             if (!(node instanceof Comment)) {
@@ -344,6 +377,30 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
 
                     }
                 }
+            }
+        }
+    }
+
+    private void printOrphanCommentsEnding(final Node node) {
+        if (this.getOption(DefaultPrinterConfiguration.ConfigOption.PRINT_COMMENTS).isPresent()) {
+            List<Node> everything = new ArrayList(node.getChildNodes());
+            PositionUtils.sortByBeginPosition(everything);
+            if (!everything.isEmpty()) {
+                int commentsAtEnd = 0;
+                boolean findingComments = true;
+
+                while(findingComments && commentsAtEnd < everything.size()) {
+                    Node last = (Node)everything.get(everything.size() - 1 - commentsAtEnd);
+                    findingComments = last instanceof Comment;
+                    if (findingComments) {
+                        ++commentsAtEnd;
+                    }
+                }
+
+                for(int i = 0; i < commentsAtEnd; ++i) {
+                    ((Node)everything.get(everything.size() - commentsAtEnd + i)).accept((VoidVisitor)this, (Object)null);
+                }
+
             }
         }
     }
