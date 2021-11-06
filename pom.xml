@@ -5,33 +5,30 @@
     <modelVersion>4.0.0</modelVersion>
 
     <!-- This is often your domain name (reversed.)  -->
-    <groupId>com.yourorganization</groupId>
+    <groupId>org.javatots</groupId>
     <!-- The name of this project (actually, the name of the artifact, which is the thing that this project produces. A jar in this case.) -->
-    <artifactId>javaparser-maven-sample</artifactId>
+    <artifactId>java-to-typescript</artifactId>
     <packaging>pom</packaging>
     <!-- The version of this project. SNAPSHOT means "we're still working on it" -->
-    <version>0.1-SNAPSHOT</version>
+    <version>1.0-SNAPSHOT</version>
     <modules>
-        <module>main</module>
+        <module>javatots</module>
     </modules>
 
     <properties>
-        <!-- Tell Maven we want to use Java 8 -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <!-- Tell Maven to treat all source files as UTF-8 -->
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
         <snakeyaml.version>1.29</snakeyaml.version>
         <lombok.version>1.18.22</lombok.version>
         <javaparser.version>3.23.1</javaparser.version>
     </properties>
 
-    <dependencies>
-    </dependencies>
-
     <!-- This blob of configuration tells Maven to make the jar executable. You can run it with:
     mvn clean package
-    java -jar target/javaparser-maven-sample-1.0-SNAPSHOT-shaded.jar
+    java -jar target/java-to-typescript-0.1-SNAPSHOT-shaded.jar
     -->
     <build>
         <plugins>

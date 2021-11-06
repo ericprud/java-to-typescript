@@ -25,20 +25,25 @@ import java.util.function.BiConsumer;
 public class JavaToTypescript {
     private static final String JAVA_LIBRARY_NAME = "shapetrees-java";
 
-    public static void main(String[] args) {
-        final String dir = "src/main/resources";
-        final String filename = "Blabla.java";
-        String transformed = new JavaToTypescript().transformFile(dir, filename);
+    public static void main(String[] args) throws FileNotFoundException {
+        final JavaToTypescript jtos = new JavaToTypescript();
+        final String pkg = "javatots/";
+        final String dir = "src/main/resources/";
+        final JtsConfig config = jtos.loadConfig(pkg + dir + "config.yaml");
+
+        final String filename = "org/javatots/example/customerdb/Cli.java";
+        String transformed = new JavaToTypescript().transformFile(config.inputDirectory, filename);
         System.out.println(transformed);
+        System.out.println("config: " + config.toString());
     }
 
-    public Config loadCustomer(final String yamlFilePath) throws FileNotFoundException {
+    public JtsConfig loadConfig(final String yamlFilePath) throws FileNotFoundException {
         Yaml yaml = new Yaml();
         InputStream inputStream = new FileInputStream(yamlFilePath);
-        return yaml.loadAs(inputStream, Config.class);
+        return yaml.loadAs(inputStream, JtsConfig.class);
     }
 
-    public String transformFile(final String dir, final String filename) {
+    public String transformFile(final String moduleDirectory, final String filename) {
         // JavaParser has a minimal logging class that normally logs nothing.
         // Let's ask it to write to standard out:
         Log.setAdapter(new Log.StandardOutStandardErrorAdapter());
@@ -46,12 +51,12 @@ public class JavaToTypescript {
         // SourceRoot is a tool that read and writes Java files from packages on a certain root directory.
         // In this case the root directory is found by taking the root from the current Maven module,
         // with src/main/resources appended.
-        SourceRoot sourceRoot = new SourceRoot(CodeGenerationUtils.mavenModuleRoot(JavaToTypescript.class).resolve(dir));
+        SourceRoot sourceRoot = new SourceRoot(CodeGenerationUtils.mavenModuleRoot(JavaToTypescript.class).resolve(moduleDirectory));
 
         // Our sample is in the root of this directory, so no package name.
         CompilationUnit cu = sourceRoot.parse("", filename);
 
-        Log.info("Porting file " + dir + "/" + filename + ":");
+        Log.info("Porting file " + filename + ":");
 
         DefaultPrinterConfiguration configuration = new DefaultPrinterConfiguration();
         configuration.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.SPACE_AROUND_OPERATORS, false));
