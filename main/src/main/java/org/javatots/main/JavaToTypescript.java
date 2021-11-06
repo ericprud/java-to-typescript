@@ -22,6 +22,13 @@ public class JavaToTypescript {
     private static final String JAVA_LIBRARY_NAME = "shapetrees-java";
 
     public static void main(String[] args) {
+        final String dir = "src/main/resources";
+        final String filename = "Blabla.java";
+        String transformed = new JavaToTypescript().transformFile(dir, filename);
+        System.out.println(transformed);
+    }
+
+    public String transformFile(final String dir, final String filename) {
         // JavaParser has a minimal logging class that normally logs nothing.
         // Let's ask it to write to standard out:
         Log.setAdapter(new Log.StandardOutStandardErrorAdapter());
@@ -29,11 +36,9 @@ public class JavaToTypescript {
         // SourceRoot is a tool that read and writes Java files from packages on a certain root directory.
         // In this case the root directory is found by taking the root from the current Maven module,
         // with src/main/resources appended.
-        final String dir = "src/main/resources";
         SourceRoot sourceRoot = new SourceRoot(CodeGenerationUtils.mavenModuleRoot(JavaToTypescript.class).resolve(dir));
 
         // Our sample is in the root of this directory, so no package name.
-        final String filename = "Blabla.java";
         CompilationUnit cu = sourceRoot.parse("", filename);
 
         Log.info("Porting file " + dir + "/" + filename + ":");
@@ -73,9 +78,7 @@ public class JavaToTypescript {
         visitor.setOnImportDeclaration(handleImport);
 
         cu.accept((VoidVisitor) visitor, null);
-        String s1 = visitor.toString();
-        System.out.print(s1);
-
+        return visitor.toString();
 /*
         // This saves all the files we just read to an output directory.
         sourceRoot.saveAll(
