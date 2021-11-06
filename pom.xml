@@ -10,7 +10,7 @@
     <artifactId>javaparser-maven-sample</artifactId>
     <packaging>pom</packaging>
     <!-- The version of this project. SNAPSHOT means "we're still working on it" -->
-    <version>1.0-SNAPSHOT</version>
+    <version>0.1-SNAPSHOT</version>
     <modules>
         <module>main</module>
     </modules>
