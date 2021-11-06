@@ -1,4 +1,4 @@
-package com.yourorganization.maven_sample;
+package org.javatots.main;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;

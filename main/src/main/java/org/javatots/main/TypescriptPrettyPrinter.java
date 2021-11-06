@@ -1,5 +1,4 @@
-//package com.github.javaparser.printer;
-package com.yourorganization.maven_sample;
+package org.javatots.main;
 
 import com.github.javaparser.ast.*;
 import com.github.javaparser.ast.body.*;
