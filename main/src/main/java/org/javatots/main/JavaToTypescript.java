@@ -12,6 +12,10 @@ import com.github.javaparser.utils.CodeGenerationUtils;
 import com.github.javaparser.utils.Log;
 import com.github.javaparser.utils.SourceRoot;
 
+import org.yaml.snakeyaml.Yaml;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
@@ -26,6 +30,12 @@ public class JavaToTypescript {
         final String filename = "Blabla.java";
         String transformed = new JavaToTypescript().transformFile(dir, filename);
         System.out.println(transformed);
+    }
+
+    public Config loadCustomer(final String yamlFilePath) throws FileNotFoundException {
+        Yaml yaml = new Yaml();
+        InputStream inputStream = new FileInputStream(yamlFilePath);
+        return yaml.loadAs(inputStream, Config.class);
     }
 
     public String transformFile(final String dir, final String filename) {
