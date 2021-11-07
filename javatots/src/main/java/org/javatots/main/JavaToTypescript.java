@@ -13,12 +13,18 @@ import com.github.javaparser.utils.Log;
 import com.github.javaparser.utils.SourceRoot;
 
 import org.javatots.config.JtsConfig;
+import org.javatots.config.ModuleMap;
+import org.javatots.config.PackageMap;
 import org.yaml.snakeyaml.Yaml;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
+
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.stream.Stream;
 
 /**
  * Some code that uses JavaParser.
@@ -26,16 +32,52 @@ import java.util.function.BiConsumer;
 public class JavaToTypescript {
     private static final String JAVA_LIBRARY_NAME = "shapetrees-java";
 
-    public static void main(String[] args) throws FileNotFoundException {
+    public static void main(String[] args) throws IOException {
         final JavaToTypescript jtos = new JavaToTypescript();
-        final String pkg = "javatots/";
-        final String dir = "src/main/resources/";
-        final JtsConfig config = jtos.loadConfig(pkg + dir + "config.yaml");
+        final String defaultConfigPath = "javatots/src/main/resources/config.yaml";
+        final JtsConfig config = jtos.loadConfig(defaultConfigPath);
+        System.out.println("config: " + config);
+        for (var moduleMapEntry : config.moduleMaps.entrySet()) {
+            String javaModuleName = moduleMapEntry.getKey();
+            ModuleMap moduleMap = moduleMapEntry.getValue();
+            String javaSrcRootStr = config.inputDirectory + javaModuleName + "/" + moduleMap.srcRoot;
+            System.out.println("\nMapping: " + javaSrcRootStr);
+
+            // make a list of the java files in this package
+            Path[] files = Files.find(
+                        Paths.get(javaSrcRootStr),
+                        Integer.MAX_VALUE,
+                        (filePath, fileAttr) -> fileAttr.isRegularFile()
+                    ).toArray(Path[]::new)
+//                    .forEach(System.out::println)
+            ;
+
+            // iterate
+            Path javaSrcRootPath = Paths.get(javaSrcRootStr);
+            for (Path p: files) {
+                String javaFilepath = String.valueOf(javaSrcRootPath.relativize(p));
+                String tsFileName = String.valueOf(javaFilepath);
+
+                // Find the first match PackageMap
+                for (PackageMap packageMap: moduleMap.packageMaps) {
+                    final String pkgPath = packageMap.getPkgPath();
+                    if (javaFilepath.startsWith(pkgPath)) {
+                        String destPath = packageMap.destPath == null
+                                ? ""
+                                : packageMap.destPath;
+                        tsFileName = String.valueOf(Path.of(destPath, javaFilepath.substring(packageMap.getPkgPath().length())));
+                        break;
+                    }
+                }
+
+                Path tsFilePath = Path.of(config.outputDirectory,moduleMap.outputPath, tsFileName);
+                System.out.println("-- "  + javaFilepath + " -> " + tsFilePath);
+                String transformed = new JavaToTypescript().transformFile("../" + javaSrcRootStr, javaFilepath);
+//                System.out.println(transformed);
+            }
+        }
 
         final String filename = "org/javatots/example/customerdb/Cli.java";
-        String transformed = new JavaToTypescript().transformFile(config.inputDirectory, filename);
-        System.out.println(transformed);
-        System.out.println("config: " + config.toString());
     }
 
     public JtsConfig loadConfig(final String yamlFilePath) throws FileNotFoundException {
@@ -45,16 +87,10 @@ public class JavaToTypescript {
     }
 
     public String transformFile(final String moduleDirectory, final String filename) {
-        // JavaParser has a minimal logging class that normally logs nothing.
-        // Let's ask it to write to standard out:
         Log.setAdapter(new Log.StandardOutStandardErrorAdapter());
 
-        // SourceRoot is a tool that read and writes Java files from packages on a certain root directory.
-        // In this case the root directory is found by taking the root from the current Maven module,
-        // with src/main/resources appended.
+        // apparently relative to Maven module root
         SourceRoot sourceRoot = new SourceRoot(CodeGenerationUtils.mavenModuleRoot(JavaToTypescript.class).resolve(moduleDirectory));
-
-        // Our sample is in the root of this directory, so no package name.
         CompilationUnit cu = sourceRoot.parse("", filename);
 
         Log.info("Porting file " + filename + ":");
