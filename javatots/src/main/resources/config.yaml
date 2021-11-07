@@ -1,5 +1,5 @@
 inputDirectory: ../javatots-test/
-outputDirectory: whereami
+outputDirectory: asTypescript
 
 moduleMaps:
   customer-db:

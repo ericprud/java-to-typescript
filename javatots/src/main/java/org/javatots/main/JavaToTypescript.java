@@ -22,9 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.BiConsumer;
-import java.util.stream.Stream;
 
 /**
  * Some code that uses JavaParser.
@@ -56,7 +54,7 @@ public class JavaToTypescript {
             Path javaSrcRootPath = Paths.get(javaSrcRootStr);
             for (Path p: files) {
                 String javaFilepath = String.valueOf(javaSrcRootPath.relativize(p));
-                String tsFileName = String.valueOf(javaFilepath);
+                String tsFileName = setExtension(String.valueOf(javaFilepath), "ts");
 
                 // Find the first match PackageMap
                 for (PackageMap packageMap: moduleMap.packageMaps) {
@@ -65,7 +63,7 @@ public class JavaToTypescript {
                         String destPath = packageMap.destPath == null
                                 ? ""
                                 : packageMap.destPath;
-                        tsFileName = String.valueOf(Path.of(destPath, javaFilepath.substring(packageMap.getPkgPath().length())));
+                        tsFileName = setExtension(String.valueOf(Path.of(destPath, javaFilepath.substring(packageMap.getPkgPath().length()))), "ts");
                         break;
                     }
                 }
@@ -73,11 +71,17 @@ public class JavaToTypescript {
                 Path tsFilePath = Path.of(config.outputDirectory,moduleMap.outputPath, tsFileName);
                 System.out.println("-- "  + javaFilepath + " -> " + tsFilePath);
                 String transformed = new JavaToTypescript().transformFile("../" + javaSrcRootStr, javaFilepath);
-//                System.out.println(transformed);
+                Files.createDirectories(Path.of(new File(String.valueOf(tsFilePath)).getParent()));
+                Writer writer = new PrintWriter(String.valueOf(tsFilePath));
+                writer.write(transformed);
+                writer.close();
             }
         }
+    }
 
-        final String filename = "org/javatots/example/customerdb/Cli.java";
+    private static String setExtension(final String filename, final String ext) {
+        int idx = filename.lastIndexOf('.');
+        return filename.substring(0, idx) + '.' + ext;
     }
 
     public JtsConfig loadConfig(final String yamlFilePath) throws FileNotFoundException {
