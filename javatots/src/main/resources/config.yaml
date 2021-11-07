@@ -1,2 +1,14 @@
 inputDirectory: ../../javatots-test/customer-db/src/main/java/
 outputDirectory: whereami
+
+moduleMaps:
+  customer-db:
+    outputPath: custdb
+    packageMaps:
+      - pkg: org.javatots.example
+        destPath: x
+  customer-app:
+    outputPath: custapp
+    packageMaps:
+      - pkg: org.javatots.example
+        destPath: x

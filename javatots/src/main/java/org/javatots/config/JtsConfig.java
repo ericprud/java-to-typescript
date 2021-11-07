@@ -1,12 +1,16 @@
-package org.javatots.main;
+package org.javatots.config;
 
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Map;
+
 @Getter
 @Setter
 public class JtsConfig {
-    String inputDirectory;
+    public String inputDirectory;
+    public String outputDirectory;
+    public Map<String, ModuleMap> moduleMaps;
 
     @Override
     public String toString() {
@@ -15,7 +19,5 @@ public class JtsConfig {
                 "  outputDirectory: " + outputDirectory + "\n" +
                 '}';
     }
-
-    String outputDirectory;
 
 }
