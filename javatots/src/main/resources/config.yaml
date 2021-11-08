@@ -1,16 +1,18 @@
-inputDirectory: ../javatots-test/
+inputDirectory: ../javatots-test
 outputDirectory: asTypescript
+packageTemplate: "// Corresponding javatots-test package: %s"
+indentation: 2
 
 moduleMaps:
   customer-db:
-    outputPath: custdb
-    srcRoot: src/main/java/
+    srcRoot: src/main/java
+    outputPath: packages/custdb
     packageMaps:
       - pkg: org.javatots.example
-        destPath:
+        destPath: src
   customer-app:
-    outputPath: custapp
-    srcRoot: src/main/java/
+    srcRoot: src/main/java
+    outputPath: packages/custapp
     packageMaps:
       - pkg: org.javatots.example
-        destPath:
+        destPath: src

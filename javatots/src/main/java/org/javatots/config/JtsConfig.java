@@ -11,6 +11,8 @@ public class JtsConfig {
     public String inputDirectory;
     public String outputDirectory;
     public Map<String, ModuleMap> moduleMaps;
+    public String packageTemplate;
+    public int indentation = 2;
 
     @Override
     public String toString() {
