@@ -1,15 +1,44 @@
 {
   "name": "astypescript",
+  "description": "a sample java-to-typescript app",
+  "license": "MIT",
+  "keywords": [
+    "java",
+    "typescript",
+    "port"
+  ],
+  "private": false,
   "version": "1.0.0",
-  "description": "",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/ericprud/javatots-test.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "bugs": {
+    "url": "http://github.com/ericprud/javatots-test/issues"
+  },
+  "author": {
+    "name": "Eric Prudhommeaux",
+    "email": "eric@w3.org",
+    "url": "http://www.w3.org/People/Eric/"
+  },
+  "preferGlobal": false,
   "dependencies": {
-    "@tsconfig/node12": "^1.0.8"
+    "@tsconfig/node12": "^1.0.8",
+    "@types/node": "^14.14.25",
+    "browserify": "^17.0.0",
+    "nomnom": "1.5.2",
+    "ts-node": "^9.1.1",
+    "typescript": "^4.1.3",
+    "uglify-js": "^3.13.3"
+  },
+  "devDependencies": {
+    "@cust-package/custdb": "file:packages/custdb",
+    "@cust-package/custapp": "file:packages/custapp"
+  },
+  "scripts": {
+    "build": "for d in packages/{custdb,custapp}/; do (cd $d &&  tsc -b tsconfig.package.json); done",
+    "clean": "rm -r packages/{custdb,custapp}/lib/",
+    "test": "echo \"Error: no test specified\" && exit 1"
   }
 }
