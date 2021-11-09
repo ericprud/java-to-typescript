@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@cust-package/custdb": ["custdb/src"],
+      "@cust-package/custapp": ["custapp/src"],
+      "@cust-package/*": ["*/src"]
+    },
+    "noEmit": true
+  }
+}
