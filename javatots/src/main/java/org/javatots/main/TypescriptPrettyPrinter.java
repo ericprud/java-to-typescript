@@ -24,6 +24,7 @@ import com.github.javaparser.utils.PositionUtils;
 import com.github.javaparser.utils.Utils;
 
 
+import java.lang.ref.Reference;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -35,6 +36,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
     BiConsumer<SourcePrinter, Name> onPackageDeclaration = null;
     BiConsumer<SourcePrinter, NodeList<ImportDeclaration>> onImportDeclarations = null;
     BiConsumer<SourcePrinter, ImportDeclaration> onImportDeclaration = null;
+    BiConsumer<SourcePrinter, NodeList<ReferenceType>> onThrows;
 
     public TypescriptPrettyPrinter(final PrinterConfiguration configuration, final Optional<PackageDeclaration> packageDeclaration) {
         super(configuration);
@@ -51,6 +53,10 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
 
     public void setOnImportDeclaration(final BiConsumer<SourcePrinter, ImportDeclaration> f) {
         this.onImportDeclaration = f;
+    }
+
+    public void setOnThrows(final BiConsumer<SourcePrinter, NodeList<ReferenceType>> throwsList) {
+        this.onThrows = throwsList;
     }
 
     public void visit(final CompilationUnit n, final Void arg) {
@@ -138,17 +144,8 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         this.printer.print(")");
         this.printer.print(": ");
         n.getType().accept(this, arg);
-        if (!Utils.isNullOrEmpty(n.getThrownExceptions())) {
-            this.printer.print(" throws ");
-            i = n.getThrownExceptions().iterator();
-
-            while (i.hasNext()) {
-                ReferenceType name = (ReferenceType) i.next();
-                name.accept(this, arg);
-                if (i.hasNext()) {
-                    this.printer.print(", ");
-                }
-            }
+        if (!Utils.isNullOrEmpty(n.getThrownExceptions()) && this.onThrows != null) {
+            this.onThrows.accept(this.printer, n.getThrownExceptions());
         }
 
         if (!n.getBody().isPresent()) {

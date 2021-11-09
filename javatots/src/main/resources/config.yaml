@@ -3,6 +3,7 @@ outputDirectory: asTypescript
 packageTemplate: "// Corresponding javatots-test package: %s"
 indentation: 2
 unknownImportTemplate: "import { %s } from %s;"
+commentThrows: true
 
 moduleMaps:
   customer-db:

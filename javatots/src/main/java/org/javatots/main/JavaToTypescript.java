@@ -2,7 +2,9 @@ package org.javatots.main;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.expr.Name;
+import com.github.javaparser.ast.type.ReferenceType;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.printer.SourcePrinter;
 import com.github.javaparser.printer.configuration.DefaultConfigurationOption;
@@ -21,7 +23,7 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
@@ -107,6 +109,7 @@ public class JavaToTypescript {
         CompilationUnit cu = sourceRoot.parse("", filename);
 
         Log.info("Porting file " + filename + ":");
+        TypescriptPrettyPrinter visitor = new TypescriptPrettyPrinter(getPrinterConfiguration(), cu.getPackageDeclaration());
 
         final BiConsumer<SourcePrinter, Name> handlePackage = (final SourcePrinter printer, final Name packageName) -> {
             if (this.config.packageTemplate != null) {
@@ -132,9 +135,25 @@ public class JavaToTypescript {
             }
         };
 
-        TypescriptPrettyPrinter visitor = new TypescriptPrettyPrinter(getPrinterConfiguration(), cu.getPackageDeclaration());
+        final BiConsumer<SourcePrinter, NodeList<ReferenceType>> handleThrows = (final SourcePrinter printer, final NodeList<ReferenceType> throwsList) -> {
+            if (this.config.commentThrows) {
+                printer.print(" /* throws ");
+                Iterator<ReferenceType> i = throwsList.iterator();
+
+                while (i.hasNext()) {
+                    ReferenceType name = (ReferenceType) i.next();
+                    name.accept((VoidVisitor) visitor, null);
+                    if (i.hasNext()) {
+                        printer.print(", ");
+                    }
+                }
+                printer.print(" */");
+            }
+        };
+
         visitor.setOnPackageDeclaration(handlePackage);
         visitor.setOnImportDeclaration(handleImport);
+        visitor.setOnThrows(handleThrows);
 
         cu.accept((VoidVisitor) visitor, null);
         return visitor.toString();

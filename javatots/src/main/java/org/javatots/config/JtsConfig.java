@@ -14,6 +14,7 @@ public class JtsConfig {
     public String packageTemplate;
     public int indentation = 2;
     public String unknownImportTemplate;
+    public boolean commentThrows;
 
     @Override
     public String toString() {
