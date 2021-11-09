@@ -2,6 +2,7 @@ inputDirectory: ../javatots-test
 outputDirectory: asTypescript
 packageTemplate: "// Corresponding javatots-test package: %s"
 indentation: 2
+unknownImportTemplate: "import { %s } from %s;"
 
 moduleMaps:
   customer-db:

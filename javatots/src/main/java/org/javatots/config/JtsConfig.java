@@ -13,6 +13,7 @@ public class JtsConfig {
     public Map<String, ModuleMap> moduleMaps;
     public String packageTemplate;
     public int indentation = 2;
+    public String unknownImportTemplate;
 
     @Override
     public String toString() {

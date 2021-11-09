@@ -30,7 +30,7 @@ import java.util.function.BiConsumer;
  */
 public class JavaToTypescript {
     protected final static String TEST_CONFIG_PATH = "javatots/src/main/resources/config.yaml";
-    protected JtsConfig config;
+    protected final JtsConfig config;
 
     JavaToTypescript(JtsConfig config) {
         this.config = config;
@@ -127,7 +127,8 @@ public class JavaToTypescript {
 //                printer.print(".*");
             } else if (path.startsWith("com.janeirodigital.shapetrees.core")) {
                 printer.println("import {  " + cls + " } from " + pkg + ";");
-            } else if (path.startsWith("com.janeirodigital.shapetrees.foo")) {
+            } else if (this.config.unknownImportTemplate != null) {
+                printer.println(String.format(this.config.unknownImportTemplate, cls, pkg));
             }
         };
 
