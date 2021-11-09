@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
     final Optional<PackageDeclaration> packageDeclaration;
     private boolean inMethod = true;
+    private boolean inMethodParameter = false;
     private Optional<Type> curType = null;
     BiConsumer<SourcePrinter, Name> onPackageDeclaration = null;
     BiConsumer<SourcePrinter, NodeList<ImportDeclaration>> onImportDeclarations = null;
@@ -134,7 +135,9 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
 
             while (i.hasNext()) {
                 Parameter p = (Parameter) i.next();
+                this.inMethodParameter = true;
                 p.accept(this, arg);
+                this.inMethodParameter = false;
                 if (i.hasNext()) {
                     this.printer.print(", ");
                 }
@@ -214,6 +217,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
 
     protected void printModifiers(final NodeList<Modifier> modifiers) {
         if (modifiers.size() > 0) {
+            String tsQualifier = this.inMethodParameter ? "readonly" : "const";
             this.printer.print((String)modifiers
                     .stream()
                     .map(Modifier::getKeyword)
@@ -222,7 +226,9 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
                         s -> this.inMethod || !s.equals("final") // https://www.typescriptlang.org/play told me "A class member cannot have the 'const' keyword."
                     )
                     .map(
-                        s -> s.equals("final") ? "const" : s
+                        s -> s.equals("final")
+                                ? tsQualifier
+                                : s
                     )
                     .collect(Collectors.joining(" "))
                     + " "
@@ -307,7 +313,9 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
 
             while(i.hasNext()) {
                 Parameter p = (Parameter)i.next();
+                this.inMethodParameter = true;
                 p.accept(this, arg);
+                this.inMethodParameter = false;
                 if (i.hasNext()) {
                     this.printer.print(", ");
                 }
