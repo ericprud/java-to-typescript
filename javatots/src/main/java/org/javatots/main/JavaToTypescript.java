@@ -3,8 +3,16 @@ package org.javatots.main;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.expr.Name;
+import com.github.javaparser.ast.body.*;
+import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.Modifier;
+import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.type.ReferenceType;
+import com.github.javaparser.ast.type.Type;
+import com.github.javaparser.ast.visitor.ModifierVisitor;
+import com.github.javaparser.ast.visitor.Visitable;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.printer.SourcePrinter;
 import com.github.javaparser.printer.configuration.DefaultConfigurationOption;
@@ -23,6 +31,7 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -151,6 +160,123 @@ public class JavaToTypescript {
             }
         };
 
+        cu.accept(new ModifierVisitor<Void>() {
+            boolean getters;
+            boolean setters;
+            boolean noArgsCtor;
+            boolean allArgsCtor;
+            ArrayList<MemberDeclarations> memberDeclarations;
+
+            @Override
+            public Visitable visit(ClassOrInterfaceDeclaration n, Void arg) { //  MethodDeclaration
+                this.getters = false;
+                this.setters = false;
+                this.noArgsCtor = false;
+                this.allArgsCtor = false;
+                memberDeclarations = new ArrayList<>();
+
+                NodeList<AnnotationExpr> annotations = n.getAnnotations();
+                Iterator iAnnot = annotations.iterator();
+                while(iAnnot.hasNext()) {
+                    AnnotationExpr annot = (AnnotationExpr)iAnnot.next();
+                    switch (annot.getName().asString()) {
+                        case "Getter":
+                            getters = true;
+                            break;
+                        case "Setter":
+                            setters = true;
+                            break;
+                        case "NoArgsConstructor":
+                            noArgsCtor = true;
+                            break;
+                        case "AllArgsConstructor":
+                            allArgsCtor = true;
+                            break;
+                        default:
+                            throw new IllegalStateException("Unexpected value: " + annot.getName());
+                    }
+//                    annotations.remove(annot);
+//                    Node newNode = (Node)annot.accept(this, arg);
+//                    changeList.add(new Pair(annot, newNode));
+                }
+                n.setAnnotations(annotations); // cleared out list
+
+                NodeList<BodyDeclaration<?>> members = n.getMembers();
+                Iterator iMember = members.iterator();
+                while(iMember.hasNext()) {
+                    BodyDeclaration member = (BodyDeclaration) iMember.next();
+                    if (member instanceof FieldDeclaration) { //  && ((FieldDeclaration) member).getModifiers().indexOf(Modifier.keyword.private) ?
+                        FieldDeclaration asFieldDecl = (FieldDeclaration) member;
+                        NodeList<VariableDeclarator> varDecls = asFieldDecl.getVariables();
+                        Iterator iVarDecl = varDecls.iterator();
+                        while(iVarDecl.hasNext()) {
+                            VariableDeclarator var = (VariableDeclarator) iVarDecl.next();
+                            Type t = var.getType();
+                            MemberDeclarations memberDeclarations = new MemberDeclarations(var);
+                            this.memberDeclarations.add(memberDeclarations);
+                        }
+                    }
+                }
+
+                for (MemberDeclarations memberDeclarations : memberDeclarations) {
+
+                    if (setters) {
+                        MethodDeclaration setter = n.addMethod("set" + memberDeclarations.capitolizedName, Modifier.Keyword.PUBLIC);
+                        setter.addAndGetParameter(String.class, memberDeclarations.name);
+                        BlockStmt block = new BlockStmt();
+                        setter.setBody(block);
+
+                        // add a statement do the method body
+                        ExpressionStmt set = new ExpressionStmt(new AssignExpr(new FieldAccessExpr(new ThisExpr(), memberDeclarations.name), new NameExpr(memberDeclarations.name), AssignExpr.Operator.ASSIGN));
+                        block.addStatement(set);
+//                                NameExpr clazz = new NameExpr("System");
+//                                FieldAccessExpr field = new FieldAccessExpr(clazz, "out");
+//                                MethodCallExpr call = new MethodCallExpr(field, "println");
+//                                call.addArgument(new StringLiteralExpr("Hello World!"));
+//                                block.addStatement(call);
+                    }
+                    if (getters) {
+                        MethodDeclaration getter = n.addMethod("get" + memberDeclarations.capitolizedName, Modifier.Keyword.PUBLIC);
+                        getter.setType(memberDeclarations.t.clone());
+                        BlockStmt block = new BlockStmt();
+                        getter.setBody(block);
+
+                        // add a statement do the method body
+                        FieldAccessExpr f = new FieldAccessExpr(new ThisExpr(), memberDeclarations.name);
+                        ReturnStmt ret = new ReturnStmt(f);
+                        block.addStatement(ret);
+                    }
+
+                }
+
+                return super.visit(n, arg);
+            }
+
+            @Override
+            public Visitable visit(FieldDeclaration n, Void arg) { // FieldDeclaration MethodDeclaration ClassOrInterfaceDeclaration
+                return super.visit(n, arg);
+            }
+/*
+            @Override
+            public Visitable visit(IfStmt n, Void arg) { // FieldDeclaration MethodDeclaration
+                // Figure out what to get and what to cast simply by looking at the AST in a debugger!
+                n.getCondition().ifBinaryExpr(binaryExpr -> {
+                    if (binaryExpr.getOperator() == BinaryExpr.Operator.NOT_EQUALS && n.getElseStmt().isPresent()) {
+                        /* It's a good idea to clone nodes that you move around.
+                            JavaParser (or you) might get confused about who their parent is!
+                        *\/
+                        Statement thenStmt = n.getThenStmt().clone();
+                        Statement elseStmt = n.getElseStmt().get().clone();
+                        n.setThenStmt(elseStmt);
+                        n.setElseStmt(thenStmt);
+                        binaryExpr.setOperator(BinaryExpr.Operator.EQUALS);
+                    }
+                });
+                return super.visit(n, arg);
+            }
+            */
+        }, null);
+
         visitor.setOnPackageDeclaration(handlePackage);
         visitor.setOnImportDeclaration(handleImport);
         visitor.setOnThrows(handleThrows);
@@ -178,4 +304,5 @@ public class JavaToTypescript {
         configuration.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.PRINT_COMMENTS, true));
         return configuration;
     }
+
 }
