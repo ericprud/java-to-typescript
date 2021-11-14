@@ -1,11 +1,13 @@
 package org.javatots.main;
 
-import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.ImportDeclaration;
-import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.*;
+import com.github.javaparser.ast.body.TypeDeclaration;
+import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.modules.ModuleDeclaration;
 import com.github.javaparser.ast.type.ReferenceType;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
+import com.github.javaparser.ast.visitor.Visitable;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.printer.SourcePrinter;
 import com.github.javaparser.printer.configuration.DefaultConfigurationOption;
@@ -24,9 +26,7 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
@@ -168,7 +168,33 @@ public class JavaToTypescript {
         };
 
         ArrayList<ModifierVisitor<Void>> preProcessors = new ArrayList<>();
-        preProcessors.add(new DelombokVisitor());
+        Set<String> preprocessorNames = new HashSet<String>();
+
+        cu.accept(new ModifierVisitor<Void>() {
+            @Override
+            public Visitable visit(final CompilationUnit n, final Void arg) {
+            NodeList<ImportDeclaration> imports = new NodeList<>();
+            final Iterator<ImportDeclaration> i = n.getImports().iterator();
+            while (i.hasNext()) {
+                ImportDeclaration importDecl = i.next();
+                final String path = importDecl.getName().asString();
+                int iName = path.lastIndexOf('.');
+                final String pkg = path.substring(0, iName);
+                final String cls = path.substring(iName + 1);
+                if (pkg.equals("lombok")) {
+                    if (!preprocessorNames.contains(pkg)) {
+                        preProcessors.add(new DelombokVisitor());
+                        preprocessorNames.add(pkg);
+                    }
+                } else {
+                    imports.add((ImportDeclaration) importDecl.accept(this, arg));
+                }
+            }
+            n.setImports(imports);
+            return super.visit(n, arg);
+            }
+        }, null);
+
 
         for (ModifierVisitor<Void> preProcessor : preProcessors) {
             cu.accept(preProcessor, null);
