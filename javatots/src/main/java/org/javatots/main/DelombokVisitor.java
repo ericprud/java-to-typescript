@@ -75,12 +75,12 @@ class DelombokVisitor extends ModifierVisitor<Void> {
 
         // Generate constructors
         if (noArgsCtor) {
-            ConstructorDeclaration ctor = new ConstructorDeclaration();
+            ConstructorDeclaration ctor = n.addConstructor(Modifier.Keyword.PUBLIC);
             ctor.addModifier(Modifier.Keyword.PUBLIC);
         }
 
         if (allArgsCtor) {
-            ConstructorDeclaration ctor = new ConstructorDeclaration();
+            ConstructorDeclaration ctor = n.addConstructor(Modifier.Keyword.PUBLIC);
             ctor.addModifier(Modifier.Keyword.PUBLIC);
             // Add parameters
             for (MemberDeclarations memberDeclaration : memberDeclarations) {

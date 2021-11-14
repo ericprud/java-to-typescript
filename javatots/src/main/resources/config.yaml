@@ -4,6 +4,7 @@ packageTemplate: "// Corresponding javatots-test package: %s"
 indentation: 2
 unknownImportTemplate: "import { %s } from %s;"
 commentThrows: true
+unknownAnnotations: comment # comment, ignore, throw (everything else interpreted as throw)
 
 moduleMaps:
   customer-db:

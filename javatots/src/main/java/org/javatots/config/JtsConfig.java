@@ -15,6 +15,7 @@ public class JtsConfig {
     public int indentation = 2;
     public String unknownImportTemplate;
     public boolean commentThrows;
+    public String unknownAnnotations;
 
     @Override
     public String toString() {

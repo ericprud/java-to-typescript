@@ -3,6 +3,7 @@ package org.javatots.main;
 import com.github.javaparser.ast.*;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.comments.Comment;
+import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.Name;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
@@ -38,6 +39,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
     BiConsumer<SourcePrinter, NodeList<ImportDeclaration>> onImportDeclarations = null;
     BiConsumer<SourcePrinter, ImportDeclaration> onImportDeclaration = null;
     BiConsumer<SourcePrinter, NodeList<ReferenceType>> onThrows;
+    BiConsumer<SourcePrinter, NodeList<AnnotationExpr>> onMethodAnnotations;
 
     public TypescriptPrettyPrinter(final PrinterConfiguration configuration, final Optional<PackageDeclaration> packageDeclaration) {
         super(configuration);
@@ -58,6 +60,10 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
 
     public void setOnThrows(final BiConsumer<SourcePrinter, NodeList<ReferenceType>> throwsList) {
         this.onThrows = throwsList;
+    }
+
+    public void setOnMethodAnnotations(final BiConsumer<SourcePrinter, NodeList<AnnotationExpr>> onMethodAnnotations) {
+        this.onMethodAnnotations = onMethodAnnotations;
     }
 
     public void visit(final CompilationUnit n, final Void arg) {
@@ -110,10 +116,39 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
     @Override
     public void visit(final MethodDeclaration n, final Void arg) {
         this.inMethod = true;
+        boolean override = false;
 //        Log.info("    " + (this.packageDeclaration.isPresent() ? packageDeclaration.get().getName() : "<no package>") + "." + n.getName());
         this.printOrphanCommentsBeforeThisChildNode(n);
         this.printComment(n.getComment(), arg);
-        this.printMemberAnnotations(n.getAnnotations(), arg);
+
+        //        this.printMemberAnnotations(n.getAnnotations(), arg);
+        final NodeList<AnnotationExpr> annotations = n.getAnnotations();
+        if (!annotations.isEmpty()) {
+            NodeList<AnnotationExpr> remaining = new NodeList<>();
+            Iterator var3 = annotations.iterator();
+
+            while(var3.hasNext()) {
+                AnnotationExpr a = (AnnotationExpr)var3.next();
+                if (a.getName().asString().equals("Override")) {
+                    override = true;
+                } else {
+                    remaining.add(a);
+                }
+            }
+            if (!remaining.isEmpty()) {
+                if (this.onMethodAnnotations != null) {
+                    this.onMethodAnnotations.accept(this.printer, remaining);
+                } else {
+                    throw new IllegalStateException("Unknown method annotations: " + remaining.stream()
+                            .map(a -> String.valueOf(a))
+                            .collect(Collectors.joining(", ")));
+                }
+            }
+        }
+
+        if (override) {
+            this.printer.print("override ");
+        }
         this.printModifiers(n.getModifiers());
         this.printTypeParameters(n.getTypeParameters(), arg);
         if (!Utils.isNullOrEmpty(n.getTypeParameters())) {

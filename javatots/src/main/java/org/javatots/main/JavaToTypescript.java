@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 /**
  * Some code that uses JavaParser.
@@ -153,6 +154,19 @@ public class JavaToTypescript {
             }
         };
 
+        final BiConsumer<SourcePrinter, NodeList<AnnotationExpr>> handleMethodAnnotations = (final SourcePrinter printer, final NodeList<AnnotationExpr> annotations) -> {
+            String annotationsStr = annotations.stream()
+                    .map(a -> String.valueOf(a))
+                    .collect(Collectors.joining(", "));
+            if ("comment".equals(this.config.unknownAnnotations)) {
+                printer.println("// " + annotationsStr);
+            } else if ("ignore".equals(this.config.unknownAnnotations)) {
+            } else {
+                throw new IllegalStateException("Unknown method annotations: " + annotationsStr);
+            }
+            // could call this on each to get overloaded form: annotation.accept(this, null);
+        };
+
         ArrayList<ModifierVisitor<Void>> preProcessors = new ArrayList<>();
         preProcessors.add(new DelombokVisitor());
 
@@ -163,6 +177,7 @@ public class JavaToTypescript {
         visitor.setOnPackageDeclaration(handlePackage);
         visitor.setOnImportDeclaration(handleImport);
         visitor.setOnThrows(handleThrows);
+        visitor.setOnMethodAnnotations(handleMethodAnnotations);
 
         cu.accept((VoidVisitor) visitor, null);
         return visitor.toString();
