@@ -76,18 +76,28 @@ class DelombokVisitor extends ModifierVisitor<Void> {
         // Generate constructors
         if (noArgsCtor) {
             ConstructorDeclaration ctor = n.addConstructor(Modifier.Keyword.PUBLIC);
-            ctor.addModifier(Modifier.Keyword.PUBLIC);
+            BlockStmt block = new BlockStmt();
+            ctor.setBody(block);
+
+            // Add a super() if it's an extended class
+            if (n.getExtendedTypes().size() != 0) {
+                block.addStatement(new SuperExpr());
+            }
         }
 
         if (allArgsCtor) {
             ConstructorDeclaration ctor = n.addConstructor(Modifier.Keyword.PUBLIC);
-            ctor.addModifier(Modifier.Keyword.PUBLIC);
             // Add parameters
             for (MemberDeclarations memberDeclaration : memberDeclarations) {
-                ctor.addAndGetParameter(memberDeclaration.t.getClass(), memberDeclaration.name);
+                ctor.addAndGetParameter(memberDeclaration.type, memberDeclaration.name);
             }
             BlockStmt block = new BlockStmt();
             ctor.setBody(block);
+
+            // Add a super() if it's an extended class
+            if (n.getExtendedTypes().size() != 0) {
+                block.addStatement(new SuperExpr());
+            }
             // Add assignments
             for (MemberDeclarations memberDeclaration : memberDeclarations) {
                 block.addStatement(memberDeclaration.makeAssignment());
@@ -98,7 +108,7 @@ class DelombokVisitor extends ModifierVisitor<Void> {
         for (MemberDeclarations memberDeclaration : memberDeclarations) {
             if (setters) {
                 MethodDeclaration setter = n.addMethod("set" + memberDeclaration.capitolizedName, Modifier.Keyword.PUBLIC);
-                setter.addAndGetParameter(memberDeclaration.t.getClass(), memberDeclaration.name);
+                setter.addAndGetParameter(memberDeclaration.type, memberDeclaration.name);
                 BlockStmt block = new BlockStmt();
                 setter.setBody(block);
                 block.addStatement(memberDeclaration.makeAssignment());
@@ -110,7 +120,7 @@ class DelombokVisitor extends ModifierVisitor<Void> {
             }
             if (getters) {
                 MethodDeclaration getter = n.addMethod("get" + memberDeclaration.capitolizedName, Modifier.Keyword.PUBLIC);
-                getter.setType(memberDeclaration.t.clone());
+                getter.setType(memberDeclaration.type.clone());
                 BlockStmt block = new BlockStmt();
                 getter.setBody(block);
                 block.addStatement(new ReturnStmt(new FieldAccessExpr(new ThisExpr(), memberDeclaration.name)));

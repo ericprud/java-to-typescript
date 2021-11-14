@@ -213,7 +213,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         Iterator i = n.getVariables().iterator();
 
         while(i.hasNext()) {
-            this.printModifiers(n.getModifiers()); // TODO: I don't know if there's TS analog to `const foo = {}, bar = [];` so I moved the modifiers in the loop.
+            this.printModifiers(n.getModifiers()); // TODO: I don'type know if there's TS analog to `const foo = {}, bar = [];` so I moved the modifiers in the loop.
             this.curType = n.getMaximumCommonType();
             ((VariableDeclarator)i.next()).accept(this, arg);
             this.curType = null;
