@@ -11,6 +11,7 @@ import com.github.javaparser.ast.nodeTypes.NodeWithVariables;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.type.ArrayType;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.ReferenceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.UnknownType;
@@ -66,6 +67,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         this.onMethodAnnotations = onMethodAnnotations;
     }
 
+    @Override
     public void visit(final CompilationUnit n, final Void arg) {
         this.printOrphanCommentsBeforeThisChildNode(n);
         this.printComment(n.getComment(), arg);
@@ -104,6 +106,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         }
     }
 
+    @Override
     public void visit(final ImportDeclaration n, final Void arg) {
         this.printOrphanCommentsBeforeThisChildNode(n);
         this.printComment(n.getComment(), arg);
@@ -111,6 +114,70 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
             this.onImportDeclaration.accept(this.printer, n);
         }
         this.printOrphanCommentsEnding(n);
+    }
+
+    @Override
+    public void visit(final ClassOrInterfaceDeclaration n, final Void arg) {
+        this.printOrphanCommentsBeforeThisChildNode(n);
+        this.printComment(n.getComment(), arg);
+        this.printMemberAnnotations(n.getAnnotations(), arg);
+
+        final NodeList<Modifier> modifiers = n.getModifiers();
+        final NodeList<Modifier> remainingModifiers = new NodeList<>();
+        Iterator i = modifiers.iterator();
+        while(i.hasNext()) {
+            Modifier m = (Modifier) i.next();
+            if (m.getKeyword() == Modifier.Keyword.PUBLIC) {
+                printer.print("export ");
+            } else {
+                remainingModifiers.add(m);
+            }
+        }
+        this.printModifiers(remainingModifiers);
+        if (n.isInterface()) {
+            this.printer.print("interface ");
+        } else {
+            this.printer.print("class ");
+        }
+
+        n.getName().accept(this, arg);
+        this.printTypeParameters(n.getTypeParameters(), arg);
+        ClassOrInterfaceType c;
+        if (!n.getExtendedTypes().isEmpty()) {
+            this.printer.print(" extends ");
+            i = n.getExtendedTypes().iterator();
+
+            while(i.hasNext()) {
+                c = (ClassOrInterfaceType)i.next();
+                c.accept(this, arg);
+                if (i.hasNext()) {
+                    this.printer.print(", ");
+                }
+            }
+        }
+
+        if (!n.getImplementedTypes().isEmpty()) {
+            this.printer.print(" implements ");
+            i = n.getImplementedTypes().iterator();
+
+            while(i.hasNext()) {
+                c = (ClassOrInterfaceType)i.next();
+                c.accept(this, arg);
+                if (i.hasNext()) {
+                    this.printer.print(", ");
+                }
+            }
+        }
+
+        this.printer.println(" {");
+        this.printer.indent();
+        if (!Utils.isNullOrEmpty(n.getMembers())) {
+            this.printMembers(n.getMembers(), arg);
+        }
+
+        this.printOrphanCommentsEnding(n);
+        this.printer.unindent();
+        this.printer.print("}");
     }
 
     @Override
@@ -146,7 +213,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
             }
         }
 
-        if (override) {
+        if (override && !n.getName().asString().equals("toString")) {
             this.printer.print("override ");
         }
         this.printModifiers(n.getModifiers());
@@ -205,6 +272,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         }
     }
 
+    @Override
     public void visit(final FieldDeclaration n, final Void arg) {
         this.printOrphanCommentsBeforeThisChildNode(n);
         this.printComment(n.getComment(), arg);
@@ -225,6 +293,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         this.printer.print(";");
     }
 
+    @Override
     public void visit(final VariableDeclarationExpr n, final Void arg) {
         this.printOrphanCommentsBeforeThisChildNode(n);
         this.printComment(n.getComment(), arg);
@@ -272,6 +341,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
 
     }
 
+    @Override
     public void visit(final VariableDeclarator n, final Void arg) {
         this.printOrphanCommentsBeforeThisChildNode(n);
         this.printComment(n.getComment(), arg);
@@ -311,6 +381,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
 
     }
 
+    @Override
     public void visit(final Parameter n, final Void arg) {
         this.printOrphanCommentsBeforeThisChildNode(n);
         this.printComment(n.getComment(), arg);
@@ -329,6 +400,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         n.getType().accept(this, arg);
     }
 
+    @Override
     public void visit(final ConstructorDeclaration n, final Void arg) {
         this.inMethod = true;
         this.printOrphanCommentsBeforeThisChildNode(n);
@@ -340,7 +412,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
             this.printer.print(" ");
         }
 
-        n.getName().accept(this, arg);
+        this.printer.print("constructor"); // n.getName().accept(this, arg);
         this.printer.print("(");
         Iterator i;
         if (!n.getParameters().isEmpty()) {
