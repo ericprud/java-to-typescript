@@ -5,6 +5,9 @@ import lombok.Setter;
 
 import java.util.Map;
 
+/**
+ * Java-to-typescript (javatots) configuration; probably loaded from YAML.
+ */
 @Getter
 @Setter
 public class JtsConfig {

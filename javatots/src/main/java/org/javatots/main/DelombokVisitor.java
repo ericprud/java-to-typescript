@@ -13,6 +13,9 @@ import com.github.javaparser.ast.visitor.Visitable;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+/**
+ * Find (a few of the) Lombok (class) annotations and materialize them as new members functions.
+ */
 class DelombokVisitor extends ModifierVisitor<Void> {
     boolean getters;
     boolean setters;

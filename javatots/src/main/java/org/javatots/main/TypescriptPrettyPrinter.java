@@ -31,6 +31,9 @@ import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
+/**
+ * Override the serialization of parts of the Java AST to make it Typescript-y
+ */
 public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
     final Optional<PackageDeclaration> packageDeclaration;
     private boolean inMethod = true;

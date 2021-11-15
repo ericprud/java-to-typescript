@@ -1,20 +1,31 @@
-JavaParser and Maven sample
+Java to Typescript
 ---
+Converts Fortran to Cobol.
 
-A fully working sample Maven project that parses and generates code with [JavaParser](http://www.javaparser.org)
+This code was written to reduce RSI associated with porting code from Java to Typescript; those repetative tasks like tweaking imports, moving types around, etc. It's not likely to be complete this century, but it doesn't have to be complete to help in porting.
 
-This is targeted at people without [Maven](https://maven.apache.org/) experience.
+## Contributing
 
-To build it, you will need to download and unpack the latest (or recent) version of Maven (https://maven.apache.org/download.cgi)
-and put the `mvn` command on your path.
-Then, you will need to install a Java 1.8 (or higher) JDK (not JRE!), and make sure you can run `java` from the command line.
-Now you can run `mvn clean install` and Maven will compile your project, 
-an put the results it in two jar files in the `target` directory.
-If you like to run from the command line,
-execute `java -jar target/javaparser-maven-sample-1.0-SNAPSHOT-shaded.jar`.
+To play with this, clone the accompanying test java package: https://github.com/ericprud/javatots-test as a sybling of this repo. Then you should be able to run the main without command line args and reproduce the .ts files under `../javatots-test/asTypescript/packages`.
+```shell
+(cd javatots &&
+ java org.javatots.main.JavaToTypescript)
+```
+Once you run this, you can
+```shell
+(cd ../javatots-test/asTypescript/src/packages/ &&
+ for d in custdb custapp;
+   cd $d &&
+   npm run build)
+```
+You should be able to do that from `../javatots-test/asTypescript/` but I guess node's script runner doesn't understand `for f in foo*; do`.
 
-How you run this code is up to you, but usually you would start by using an IDE like [NetBeans](https://netbeans.org/), [Intellij IDEA](https://www.jetbrains.com/idea/), or [Eclipse](https://eclipse.org/ide/).
+Any typescript errors you eliminate are a step up.
 
-The Maven dependencies may lag behind the official releases a bit.
 
-If you notice some problems with this setup, please open an issue.
+## Plan
+
+1. Plug-in architecture to map invocations of java libraries to analogous javascript libraries.
+2. Round out more Lombok features.
+3. Keep picking away at Typescript errors.
+4. Parse tsconfig to control whether to add `this.` qualifiers to member variables and functions.

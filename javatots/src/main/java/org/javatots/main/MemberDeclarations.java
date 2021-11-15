@@ -8,6 +8,9 @@ import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.type.Type;
 
+/**
+ * Fiddly bits of mapping java names to Typescript.
+ */
 public class MemberDeclarations {
     public String name;
     String capitolizedName;

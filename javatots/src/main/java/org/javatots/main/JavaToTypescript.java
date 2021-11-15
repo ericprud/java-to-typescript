@@ -1,10 +1,7 @@
 package org.javatots.main;
 
 import com.github.javaparser.ast.*;
-import com.github.javaparser.ast.body.TypeDeclaration;
-import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.*;
-import com.github.javaparser.ast.modules.ModuleDeclaration;
 import com.github.javaparser.ast.type.ReferenceType;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
 import com.github.javaparser.ast.visitor.Visitable;
@@ -31,16 +28,26 @@ import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 /**
- * Some code that uses JavaParser.
+ * Read config file, walk java modules there-in, convert them to Yypescript.
  */
 public class JavaToTypescript {
+    // Default configuration to read if none specified on command line.
     protected final static String TEST_CONFIG_PATH = "javatots/src/main/resources/config.yaml";
+    // Path from execution root (probably the javatots module directory) to the repo root.
+    protected final static String PATH_TO_REPO_ROOT = "../";
+
+    // Config controls where to look for Java source and what Typescript src hierarchy to map it to
     protected final JtsConfig config;
 
     JavaToTypescript(JtsConfig config) {
         this.config = config;
     }
 
+    /**
+     * main defaults to the TEST_CONFIG_PATH if you don't specify one.
+     * @param args usual java argv structure
+     * @throws IOException
+     */
     public static void main(String[] args) throws IOException {
         Log.setAdapter(new Log.StandardOutStandardErrorAdapter());
         final String configPath = args.length > 0 ? args[0] : TEST_CONFIG_PATH;
@@ -56,11 +63,16 @@ public class JavaToTypescript {
         return yaml.loadAs(inputStream, JtsConfig.class);
     }
 
+    /**
+     * Walk the modules specified in the config, parse the source, convert to typescript, write to new location.
+     * @throws IOException
+     */
     public void walkModules () throws IOException {
         for (var moduleMapEntry : config.moduleMaps.entrySet()) {
             String javaModuleName = moduleMapEntry.getKey();
             ModuleMap moduleMap = moduleMapEntry.getValue();
             Path javaSrcRootPath = Path.of(config.inputDirectory, javaModuleName, moduleMap.srcRoot);
+            SourceRoot sourceRoot = new SourceRoot(CodeGenerationUtils.mavenModuleRoot(JavaToTypescript.class).resolve(PATH_TO_REPO_ROOT + javaSrcRootPath));
             Log.info("\nMapping: " + javaSrcRootPath);
 
             // make a list of the java files in this package
@@ -91,7 +103,7 @@ public class JavaToTypescript {
 
                 Path tsFilePath = Path.of(config.outputDirectory,moduleMap.outputPath, tsFileName);
                 Log.info("-- "  + javaFilepath + " -> " + tsFilePath);
-                String transformed = this.transformFile("../" + javaSrcRootPath, javaFilepath);
+                String transformed = this.transformFile(sourceRoot, javaFilepath);
                 Files.createDirectories(Path.of(new File(String.valueOf(tsFilePath)).getParent()));
                 Writer writer = new PrintWriter(String.valueOf(tsFilePath));
                 writer.write(transformed);
@@ -100,15 +112,26 @@ public class JavaToTypescript {
         }
     }
 
+    /**
+     * Given a filename, change the extension to ext.
+     * @param filename
+     * @param ext
+     * @return
+     */
     private static String setExtension(final String filename, final String ext) {
         int idx = filename.lastIndexOf('.');
         return filename.substring(0, idx) + '.' + ext;
     }
 
-    public String transformFile(final String moduleDirectory, final String filename) {
+    /**
+     * Parse `filename`, convert Java source file to Typescript
+     * @param sourceRoot
+     * @param filename
+     * @return Typescript-conformant (ideally) file contents.
+     */
+    public String transformFile(final SourceRoot sourceRoot, final String filename) {
 
         // apparently relative to Maven module root
-        SourceRoot sourceRoot = new SourceRoot(CodeGenerationUtils.mavenModuleRoot(JavaToTypescript.class).resolve(moduleDirectory));
         CompilationUnit cu = sourceRoot.parse("", filename);
 
         Log.info("Porting file " + filename + ":");
@@ -207,16 +230,12 @@ public class JavaToTypescript {
 
         cu.accept((VoidVisitor) visitor, null);
         return visitor.toString();
-/*
-        // This saves all the files we just read to an output directory.
-        sourceRoot.saveAll(
-                // The path of the Maven module/project which contains the JavaToTypescript class.
-                CodeGenerationUtils.mavenModuleRoot(JavaToTypescript.class)
-                        // appended with a path to "output"
-                        .resolve(Paths.get("output")));
-*/
     }
 
+    /**
+     * Use config and hard-coded values to configure the translator's output.
+     * @return
+     */
     private PrinterConfiguration getPrinterConfiguration() {
         PrinterConfiguration configuration = new DefaultPrinterConfiguration();
         configuration.addOption(new DefaultConfigurationOption(DefaultPrinterConfiguration.ConfigOption.SPACE_AROUND_OPERATORS, false));
