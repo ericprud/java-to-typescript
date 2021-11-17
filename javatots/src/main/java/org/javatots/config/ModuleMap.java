@@ -13,9 +13,9 @@ public class ModuleMap {
     @Override
     public String toString() {
         return "ModuleMap{" +
-                "outputPath='" + outputPath + '\'' +
-                ", srcRoot='" + srcRoot + '\'' +
-                ", packageMaps=" + packageMaps +
+                "outputPath='" + this.outputPath + '\'' +
+                ", srcRoot='" + this.srcRoot + '\'' +
+                ", packageMaps=" + this.packageMaps +
                 '}';
     }
 }

@@ -70,10 +70,10 @@ public class JavaToTypescript {
      * @throws IOException
      */
     public void walkModules (final SourceRoot sourceRoot) throws IOException {
-        for (var moduleMapEntry : config.moduleMaps.entrySet()) {
+        for (var moduleMapEntry : this.config.moduleMaps.entrySet()) {
             String javaModuleName = moduleMapEntry.getKey();
             ModuleMap moduleMap = moduleMapEntry.getValue();
-            Path javaSrcRootPath = Path.of(config.inputDirectory, javaModuleName, moduleMap.srcRoot);
+            Path javaSrcRootPath = Path.of(this.config.inputDirectory, javaModuleName, moduleMap.srcRoot);
             Log.info("\nMapping: " + javaSrcRootPath);
 
             // make a list of the java files in this package
@@ -102,7 +102,7 @@ public class JavaToTypescript {
                     }
                 }
 
-                Path tsFilePath = Path.of(config.outputDirectory,moduleMap.outputPath, tsFileName);
+                Path tsFilePath = Path.of(this.config.outputDirectory,moduleMap.outputPath, tsFileName);
                 Log.info("-- "  + javaFilepath + " -> " + tsFilePath);
                 String transformed = this.transformFile(sourceRoot, String.valueOf(Path.of(String.valueOf(javaSrcRootPath), javaFilepath)));
                 Files.createDirectories(Path.of(new File(String.valueOf(tsFilePath)).getParent()));

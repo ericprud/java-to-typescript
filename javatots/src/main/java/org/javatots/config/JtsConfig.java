@@ -23,8 +23,8 @@ public class JtsConfig {
     @Override
     public String toString() {
         return "JtsConfig{\n" +
-                "  inputDirectory: " + inputDirectory + "\n" +
-                "  outputDirectory: " + outputDirectory + "\n" +
+                "  inputDirectory: " + this.inputDirectory + "\n" +
+                "  outputDirectory: " + this.outputDirectory + "\n" +
                 '}';
     }
 

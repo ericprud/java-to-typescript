@@ -28,7 +28,7 @@ class DelombokVisitor extends ModifierVisitor<Void> {
         this.setters = false;
         this.noArgsCtor = false;
         this.allArgsCtor = false;
-        memberDeclarations = new ArrayList<>();
+        this.memberDeclarations = new ArrayList<>();
 
         // Strip out Lombok directives.
         NodeList<AnnotationExpr> annotations = n.getAnnotations();
@@ -38,16 +38,16 @@ class DelombokVisitor extends ModifierVisitor<Void> {
             AnnotationExpr annot = (AnnotationExpr) iAnnot.next();
             switch (annot.getName().asString()) {
                 case "Getter":
-                    getters = true;
+                    this.getters = true;
                     break;
                 case "Setter":
-                    setters = true;
+                    this.setters = true;
                     break;
                 case "NoArgsConstructor":
-                    noArgsCtor = true;
+                    this.noArgsCtor = true;
                     break;
                 case "AllArgsConstructor":
-                    allArgsCtor = true;
+                    this.allArgsCtor = true;
                     break;
                 default:
                     AnnotationExpr newAnnotExpr = (AnnotationExpr) annot.accept(this, arg);
@@ -75,7 +75,7 @@ class DelombokVisitor extends ModifierVisitor<Void> {
         }
 
         // Generate constructors
-        if (noArgsCtor) {
+        if (this.noArgsCtor) {
             ConstructorDeclaration ctor = n.addConstructor(Modifier.Keyword.PUBLIC);
             BlockStmt block = new BlockStmt();
             ctor.setBody(block);
@@ -86,10 +86,10 @@ class DelombokVisitor extends ModifierVisitor<Void> {
             }
         }
 
-        if (allArgsCtor) {
+        if (this.allArgsCtor) {
             ConstructorDeclaration ctor = n.addConstructor(Modifier.Keyword.PUBLIC);
             // Add parameters
-            for (MemberDeclarations memberDeclaration : memberDeclarations) {
+            for (MemberDeclarations memberDeclaration : this.memberDeclarations) {
                 ctor.addAndGetParameter(memberDeclaration.type, memberDeclaration.name);
             }
             BlockStmt block = new BlockStmt();
@@ -100,21 +100,21 @@ class DelombokVisitor extends ModifierVisitor<Void> {
                 block.addStatement(new SuperExpr());
             }
             // Add assignments
-            for (MemberDeclarations memberDeclaration : memberDeclarations) {
+            for (MemberDeclarations memberDeclaration : this.memberDeclarations) {
                 block.addStatement(memberDeclaration.makeAssignment());
             }
         }
 
         // Generate getters and setters.
-        for (MemberDeclarations memberDeclaration : memberDeclarations) {
-            if (setters) {
+        for (MemberDeclarations memberDeclaration : this.memberDeclarations) {
+            if (this.setters) {
                 MethodDeclaration setter = n.addMethod("set" + memberDeclaration.capitalizedName, Modifier.Keyword.PUBLIC);
                 setter.addAndGetParameter(memberDeclaration.type, memberDeclaration.name);
                 BlockStmt block = new BlockStmt();
                 setter.setBody(block);
                 block.addStatement(memberDeclaration.makeAssignment());
             }
-            if (getters) {
+            if (this.getters) {
                 MethodDeclaration getter = n.addMethod("get" + memberDeclaration.capitalizedName, Modifier.Keyword.PUBLIC);
                 getter.setType(memberDeclaration.type.clone());
                 BlockStmt block = new BlockStmt();

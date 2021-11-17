@@ -78,8 +78,8 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
             this.printer.println("???");
         } else {
             if (n.getPackageDeclaration().isPresent() && this.onPackageDeclaration != null) {
-                final Name packageName = ((PackageDeclaration) n.getPackageDeclaration().get()).getName();
-                onPackageDeclaration.accept(this.printer, packageName);
+                final Name packageName = n.getPackageDeclaration().get().getName();
+                this.onPackageDeclaration.accept(this.printer, packageName);
             }
 
             if (this.onImportDeclarations != null) {
@@ -128,7 +128,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         while(i.hasNext()) {
             Modifier m = (Modifier) i.next();
             if (m.getKeyword() == Modifier.Keyword.PUBLIC) {
-                printer.print("export ");
+                this.printer.print("export ");
             } else {
                 remainingModifiers.add(m);
             }

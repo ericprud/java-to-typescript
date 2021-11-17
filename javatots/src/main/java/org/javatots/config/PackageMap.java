@@ -11,17 +11,17 @@ public class PackageMap {
     public String destPath;
 
     public String getPkgPath() {
-        if (path.isEmpty()) {
-            path = Optional.of(pkg.replaceAll("\\.", "/"));
+        if (this.path.isEmpty()) {
+            this.path = Optional.of(this.pkg.replaceAll("\\.", "/"));
         }
-        return path.get();
+        return this.path.get();
     }
 
     @Override
     public String toString() {
         return "PackageMap{" +
-                "pkg='" + pkg + '\'' +
-                ", destPath='" + destPath + '\'' +
+                "pkg='" + this.pkg + '\'' +
+                ", destPath='" + this.destPath + '\'' +
                 '}';
     }
 }
