@@ -168,7 +168,7 @@ public class JavaToTypescript {
                 Iterator<ReferenceType> i = throwsList.iterator();
 
                 while (i.hasNext()) {
-                    ReferenceType name = (ReferenceType) i.next();
+                    ReferenceType name = i.next();
                     name.accept((VoidVisitor) visitor, null);
                     if (i.hasNext()) {
                         printer.print(", ");

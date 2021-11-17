@@ -257,7 +257,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
             this.printer.print(";");
         } else {
             this.printer.print(" ");
-            ((BlockStmt) n.getBody().get()).accept(this, arg);
+            n.getBody().get().accept(this, arg);
         }
         this.inMethod = false;
     }
@@ -294,9 +294,8 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
     public void visit(final VariableDeclarationExpr n, final Void arg) {
         this.printOrphanCommentsBeforeThisChildNode(n);
         this.printComment(n.getComment(), arg);
-        Optional var10000 = n.getParentNode();
         Objects.requireNonNull(ExpressionStmt.class);
-        if ((Boolean)var10000.map(ExpressionStmt.class::isInstance).orElse(false)) {
+        if ((Boolean) ((Optional) n.getParentNode()).map(ExpressionStmt.class::isInstance).orElse(false)) {
             this.printMemberAnnotations(n.getAnnotations(), arg);
         } else {
             this.printAnnotations(n.getAnnotations(), false, arg);
@@ -316,7 +315,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
     protected void printModifiers(final NodeList<Modifier> modifiers) {
         if (modifiers.size() > 0) {
             String tsQualifier = this.inMethodParameter ? "readonly" : "const";
-            this.printer.print((String)modifiers
+            this.printer.print(modifiers
                     .stream()
                     .map(Modifier::getKeyword)
                     .map(Modifier.Keyword::asString)
@@ -370,7 +369,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         });
         if (n.getInitializer().isPresent()) {
             this.printer.print(" = ");
-            ((Expression)n.getInitializer().get()).accept(this, arg);
+            n.getInitializer().get().accept(this, arg);
         }
 
     }
@@ -445,7 +444,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
     private void printOrphanCommentsBeforeThisChildNode(final Node node) {
         if (this.getOption(DefaultPrinterConfiguration.ConfigOption.PRINT_COMMENTS).isPresent()) {
             if (!(node instanceof Comment)) {
-                Node parent = (Node) node.getParentNode().orElse((Node) null);
+                Node parent = node.getParentNode().orElse(null);
                 if (parent != null) {
                     List<Node> everything = new ArrayList(parent.getChildNodes());
                     PositionUtils.sortByBeginPosition(everything);
@@ -472,12 +471,12 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
                         }
 
                         for (i = positionOfPreviousChild + 1; i < positionOfTheChild; ++i) {
-                            Node nodeToPrint = (Node) everything.get(i);
+                            Node nodeToPrint = everything.get(i);
                             if (!(nodeToPrint instanceof Comment)) {
                                 throw new RuntimeException("Expected comment, instead " + nodeToPrint.getClass() + ". Position of previous child: " + positionOfPreviousChild + ", position of child " + positionOfTheChild);
                             }
 
-                            nodeToPrint.accept((VoidVisitor)this, (Object)null);
+                            nodeToPrint.accept((VoidVisitor)this, null);
                         }
 
                     }
@@ -495,7 +494,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
                 boolean findingComments = true;
 
                 while(findingComments && commentsAtEnd < everything.size()) {
-                    Node last = (Node)everything.get(everything.size() - 1 - commentsAtEnd);
+                    Node last = everything.get(everything.size() - 1 - commentsAtEnd);
                     findingComments = last instanceof Comment;
                     if (findingComments) {
                         ++commentsAtEnd;
@@ -503,7 +502,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
                 }
 
                 for(int i = 0; i < commentsAtEnd; ++i) {
-                    ((Node)everything.get(everything.size() - commentsAtEnd + i)).accept((VoidVisitor)this, (Object)null);
+                    everything.get(everything.size() - commentsAtEnd + i).accept((VoidVisitor)this, null);
                 }
 
             }
