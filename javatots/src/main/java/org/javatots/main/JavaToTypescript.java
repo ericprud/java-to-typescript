@@ -28,13 +28,14 @@ import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 /**
- * Read config file, walk java modules there-in, convert them to Yypescript.
+ * Read config file, walk java modules there-in, convert them to Typescript.
  */
 public class JavaToTypescript {
     // Default configuration to read if none specified on command line.
     protected final static String TEST_CONFIG_PATH = "javatots/src/main/resources/config.yaml";
     // Path from execution root (probably the javatots module directory) to the repo root.
     protected final static String PATH_TO_REPO_ROOT = "../";
+    protected final static String TYPESCRIPT_FILE_EXTENSION = "ts";
 
     // Config controls where to look for Java source and what Typescript src hierarchy to map it to
     protected final JtsConfig config;
@@ -53,8 +54,8 @@ public class JavaToTypescript {
         final String configPath = args.length > 0 ? args[0] : TEST_CONFIG_PATH;
         Log.info("Reading YAML configuration from: " + configPath);
         final JtsConfig config = loadConfig(configPath);
-        final JavaToTypescript jtos = new JavaToTypescript(config);
-        jtos.walkModules();
+        SourceRoot sourceRoot = new SourceRoot(CodeGenerationUtils.mavenModuleRoot(JavaToTypescript.class).resolve(PATH_TO_REPO_ROOT));
+        new JavaToTypescript(config).walkModules(sourceRoot);
     }
 
     public static JtsConfig loadConfig(final String yamlFilePath) throws FileNotFoundException {
@@ -65,14 +66,14 @@ public class JavaToTypescript {
 
     /**
      * Walk the modules specified in the config, parse the source, convert to typescript, write to new location.
+     * @param sourceRoot a Javaparser SourceRoot, which may be shared with other projects.
      * @throws IOException
      */
-    public void walkModules () throws IOException {
+    public void walkModules (final SourceRoot sourceRoot) throws IOException {
         for (var moduleMapEntry : config.moduleMaps.entrySet()) {
             String javaModuleName = moduleMapEntry.getKey();
             ModuleMap moduleMap = moduleMapEntry.getValue();
             Path javaSrcRootPath = Path.of(config.inputDirectory, javaModuleName, moduleMap.srcRoot);
-            SourceRoot sourceRoot = new SourceRoot(CodeGenerationUtils.mavenModuleRoot(JavaToTypescript.class).resolve(PATH_TO_REPO_ROOT + javaSrcRootPath));
             Log.info("\nMapping: " + javaSrcRootPath);
 
             // make a list of the java files in this package
@@ -86,24 +87,24 @@ public class JavaToTypescript {
 
             // iterate over found Java files
             for (Path p: files) {
-                String javaFilepath = String.valueOf(javaSrcRootPath.relativize(p));
-                String tsFileName = setExtension(String.valueOf(javaFilepath), "ts");
+                final String javaFilepath = String.valueOf(javaSrcRootPath.relativize(p));
+                String tsFileName = setExtension(String.valueOf(javaFilepath), TYPESCRIPT_FILE_EXTENSION);
 
-                // Find the first match PackageMap
+                // Find the first match in PackageMap
                 for (PackageMap packageMap: moduleMap.packageMaps) {
                     final String pkgPath = packageMap.getPkgPath();
                     if (javaFilepath.startsWith(pkgPath)) {
                         String destPath = packageMap.destPath == null
                                 ? ""
                                 : packageMap.destPath;
-                        tsFileName = setExtension(String.valueOf(Path.of(destPath, javaFilepath.substring(packageMap.getPkgPath().length()))), "ts");
+                        tsFileName = setExtension(String.valueOf(Path.of(destPath, javaFilepath.substring(packageMap.getPkgPath().length()))), TYPESCRIPT_FILE_EXTENSION);
                         break;
                     }
                 }
 
                 Path tsFilePath = Path.of(config.outputDirectory,moduleMap.outputPath, tsFileName);
                 Log.info("-- "  + javaFilepath + " -> " + tsFilePath);
-                String transformed = this.transformFile(sourceRoot, javaFilepath);
+                String transformed = this.transformFile(sourceRoot, String.valueOf(Path.of(String.valueOf(javaSrcRootPath), javaFilepath)));
                 Files.createDirectories(Path.of(new File(String.valueOf(tsFilePath)).getParent()));
                 Writer writer = new PrintWriter(String.valueOf(tsFilePath));
                 writer.write(transformed);
@@ -179,7 +180,7 @@ public class JavaToTypescript {
 
         final BiConsumer<SourcePrinter, NodeList<AnnotationExpr>> handleMethodAnnotations = (final SourcePrinter printer, final NodeList<AnnotationExpr> annotations) -> {
             String annotationsStr = annotations.stream()
-                    .map(a -> String.valueOf(a))
+                    .map(String::valueOf)
                     .collect(Collectors.joining(", "));
             if ("comment".equals(this.config.unknownAnnotations)) {
                 printer.println("// " + annotationsStr);
@@ -203,7 +204,7 @@ public class JavaToTypescript {
                 final String path = importDecl.getName().asString();
                 int iName = path.lastIndexOf('.');
                 final String pkg = path.substring(0, iName);
-                final String cls = path.substring(iName + 1);
+                // final String cls = path.substring(iName + 1);
                 if (pkg.equals("lombok")) {
                     if (!preprocessorNames.contains(pkg)) {
                         preProcessors.add(new DelombokVisitor());

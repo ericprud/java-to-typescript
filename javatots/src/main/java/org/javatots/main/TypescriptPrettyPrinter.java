@@ -26,7 +26,6 @@ import com.github.javaparser.utils.PositionUtils;
 import com.github.javaparser.utils.Utils;
 
 
-import java.lang.ref.Reference;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -38,7 +37,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
     final Optional<PackageDeclaration> packageDeclaration;
     private boolean inMethod = true;
     private boolean inMethodParameter = false;
-    private Optional<Type> curType = null;
+    private Optional<Type> curType = Optional.empty();
     BiConsumer<SourcePrinter, Name> onPackageDeclaration = null;
     BiConsumer<SourcePrinter, NodeList<ImportDeclaration>> onImportDeclarations = null;
     BiConsumer<SourcePrinter, ImportDeclaration> onImportDeclaration = null;
@@ -102,9 +101,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
                 }
             }
 
-            n.getModule().ifPresent((m) -> {
-                m.accept(this, arg);
-            });
+            n.getModule().ifPresent((m) -> m.accept(this, arg));
             this.printOrphanCommentsEnding(n);
         }
     }
@@ -210,7 +207,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
                     this.onMethodAnnotations.accept(this.printer, remaining);
                 } else {
                     throw new IllegalStateException("Unknown method annotations: " + remaining.stream()
-                            .map(a -> String.valueOf(a))
+                            .map(String::valueOf)
                             .collect(Collectors.joining(", ")));
                 }
             }
@@ -284,13 +281,10 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         Iterator i = n.getVariables().iterator();
 
         while(i.hasNext()) {
-            this.printModifiers(n.getModifiers()); // TODO: I don'type know if there's TS analog to `const foo = {}, bar = [];` so I moved the modifiers in the loop.
+            this.printModifiers(n.getModifiers()); // TODO: I don't know if there's TS analog to `const foo = {}, bar = [];` so I moved the modifiers in the loop.
             this.curType = n.getMaximumCommonType();
             ((VariableDeclarator)i.next()).accept(this, arg);
-            this.curType = null;
-//            if (i.hasNext()) { // same TODO
-//                this.printer.print(", ");
-//            }
+            this.curType = Optional.empty();
         }
 
         this.printer.print(";");
@@ -314,10 +308,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
             this.printModifiers(n.getModifiers());
             this.curType = n.getMaximumCommonType();
             ((VariableDeclarator)i.next()).accept(this, arg);
-            this.curType = null;
-//            if (i.hasNext()) {
-//                this.printer.print(", ");
-//            }
+            this.curType = Optional.empty();
         }
 
     }
@@ -350,8 +341,8 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         this.printComment(n.getComment(), arg);
         n.getName().accept(this, arg);
         this.printer.print(": ");
-        if (this.curType == null) {
-            throw new IllegalStateException("curType is null at " + this.printer.toString());
+        if (this.curType.isEmpty()) {
+            throw new IllegalStateException("curType is not set at " + this.printer);
         }
         this.curType.ifPresent((t) -> {
             t.accept(this, arg);

@@ -6,7 +6,6 @@ import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
-import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
 import com.github.javaparser.ast.visitor.Visitable;
 
@@ -69,7 +68,6 @@ class DelombokVisitor extends ModifierVisitor<Void> {
                 Iterator iVarDecl = varDecls.iterator();
                 while (iVarDecl.hasNext()) {
                     VariableDeclarator var = (VariableDeclarator) iVarDecl.next();
-                    Type t = var.getType();
                     MemberDeclarations memberDeclarations = new MemberDeclarations(var);
                     this.memberDeclarations.add(memberDeclarations);
                 }
@@ -110,19 +108,14 @@ class DelombokVisitor extends ModifierVisitor<Void> {
         // Generate getters and setters.
         for (MemberDeclarations memberDeclaration : memberDeclarations) {
             if (setters) {
-                MethodDeclaration setter = n.addMethod("set" + memberDeclaration.capitolizedName, Modifier.Keyword.PUBLIC);
+                MethodDeclaration setter = n.addMethod("set" + memberDeclaration.capitalizedName, Modifier.Keyword.PUBLIC);
                 setter.addAndGetParameter(memberDeclaration.type, memberDeclaration.name);
                 BlockStmt block = new BlockStmt();
                 setter.setBody(block);
                 block.addStatement(memberDeclaration.makeAssignment());
-//                                NameExpr clazz = new NameExpr("System");
-//                                FieldAccessExpr field = new FieldAccessExpr(clazz, "out");
-//                                MethodCallExpr call = new MethodCallExpr(field, "println");
-//                                call.addArgument(new StringLiteralExpr("Hello World!"));
-//                                block.addStatement(call);
             }
             if (getters) {
-                MethodDeclaration getter = n.addMethod("get" + memberDeclaration.capitolizedName, Modifier.Keyword.PUBLIC);
+                MethodDeclaration getter = n.addMethod("get" + memberDeclaration.capitalizedName, Modifier.Keyword.PUBLIC);
                 getter.setType(memberDeclaration.type.clone());
                 BlockStmt block = new BlockStmt();
                 getter.setBody(block);

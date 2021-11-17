@@ -12,14 +12,14 @@ import com.github.javaparser.ast.type.Type;
  * Fiddly bits of mapping java names to Typescript.
  */
 public class MemberDeclarations {
-    public String name;
-    String capitolizedName;
-    Type type;
+    public final String name;
+    public final String capitalizedName;
+    public final Type type;
 
     public MemberDeclarations(final VariableDeclarator var) {
         this.type = var.getType();
         this.name = var.getNameAsString();
-        this.capitolizedName = Character.toUpperCase(this.name.charAt(0)) + this.name.substring(1);
+        this.capitalizedName = Character.toUpperCase(this.name.charAt(0)) + this.name.substring(1);
     }
 
     public ExpressionStmt makeAssignment() {
