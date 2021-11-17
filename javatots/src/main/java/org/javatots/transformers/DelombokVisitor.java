@@ -1,4 +1,4 @@
-package org.javatots.main;
+package org.javatots.transformers;
 
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.NodeList;
@@ -8,6 +8,7 @@ import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
 import com.github.javaparser.ast.visitor.Visitable;
+import org.javatots.main.MemberDeclarations;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -15,7 +16,7 @@ import java.util.Iterator;
 /**
  * Find (a few of the) Lombok (class) annotations and materialize them as new members functions.
  */
-class DelombokVisitor extends ModifierVisitor<Void> {
+public class DelombokVisitor extends ModifierVisitor<Void> {
     boolean getters;
     boolean setters;
     boolean noArgsCtor;

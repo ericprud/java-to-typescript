@@ -18,6 +18,8 @@ import com.github.javaparser.utils.SourceRoot;
 import org.javatots.config.JtsConfig;
 import org.javatots.config.ModuleMap;
 import org.javatots.config.PackageMap;
+import org.javatots.transformers.DelombokVisitor;
+import org.javatots.transformers.JavaListToArrayVisitor;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.*;
