@@ -102,9 +102,12 @@ public class JavaToTypescript {
                     }
                 }
 
+                // TS-ify file
                 Path tsFilePath = Path.of(this.config.outputDirectory,moduleMap.outputPath, tsFileName);
                 Log.info("-- "  + javaFilepath + " -> " + tsFilePath);
                 String transformed = this.transformFile(sourceRoot, String.valueOf(Path.of(String.valueOf(javaSrcRootPath), javaFilepath)));
+
+                // Write result
                 Files.createDirectories(Path.of(new File(String.valueOf(tsFilePath)).getParent()));
                 Writer writer = new PrintWriter(String.valueOf(tsFilePath));
                 writer.write(transformed);
@@ -128,7 +131,7 @@ public class JavaToTypescript {
      * Parse `filename`, convert Java source file to Typescript
      * @param sourceRoot
      * @param filename
-     * @return Typescript-conformant (ideally) file contents.
+         * @return Typescript-conformant (ideally) file contents.
      */
     public String transformFile(final SourceRoot sourceRoot, final String filename) {
 
@@ -204,11 +207,20 @@ public class JavaToTypescript {
                 final String path = importDecl.getName().asString();
                 int iName = path.lastIndexOf('.');
                 final String pkg = path.substring(0, iName);
-                // final String cls = path.substring(iName + 1);
+                final String cls = path.substring(iName + 1);
                 if (pkg.equals("lombok")) {
                     if (!preprocessorNames.contains(pkg)) {
                         preProcessors.add(new DelombokVisitor());
                         preprocessorNames.add(pkg);
+                    }
+                } else if (pkg.equals("java.util")) {
+                    if (cls.equals("List")) {
+                        if (!preprocessorNames.contains("java.util.List")) {
+                            preProcessors.add(new JavaListToArrayVisitor());
+                            preprocessorNames.add("java.util.List");
+                        }
+                    } else if (cls.equals("Map")) {
+                        ; // do nothing 'cause Map is native to TS.
                     }
                 } else {
                     imports.add((ImportDeclaration) importDecl.accept(this, arg));
