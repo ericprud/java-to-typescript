@@ -19,6 +19,7 @@ import org.javatots.config.JtsConfig;
 import org.javatots.config.ModuleMap;
 import org.javatots.config.PackageMap;
 import org.javatots.transformers.DelombokVisitor;
+import org.javatots.transformers.JavaCoreTypesVisitor;
 import org.javatots.transformers.JavaListToArrayVisitor;
 import org.yaml.snakeyaml.Yaml;
 
@@ -198,6 +199,8 @@ public class JavaToTypescript {
 
         ArrayList<ModifierVisitor<Void>> preProcessors = new ArrayList<>();
         Set<String> preprocessorNames = new HashSet<String>();
+        preProcessors.add(new JavaCoreTypesVisitor());
+        preprocessorNames.add("java core");
 
         cu.accept(new ModifierVisitor<Void>() {
             @Override
