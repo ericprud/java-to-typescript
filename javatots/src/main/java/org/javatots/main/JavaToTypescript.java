@@ -20,10 +20,7 @@ import com.github.javaparser.utils.SourceRoot;
 import org.javatots.config.JtsConfig;
 import org.javatots.config.ModuleMap;
 import org.javatots.config.PackageMap;
-import org.javatots.transformers.DelombokVisitor;
-import org.javatots.transformers.JavaCoreTypesVisitor;
-import org.javatots.transformers.JavaFileInputStreamVisitor;
-import org.javatots.transformers.JavaListToArrayVisitor;
+import org.javatots.transformers.*;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.*;
@@ -236,8 +233,6 @@ public class JavaToTypescript {
                 super.visit(n, collector);
             }
         }, referencedSiblings);
-        System.out.println(referencedSiblings);
-
 
         cu.accept(new ModifierVisitor<Void>() {
             @Override
@@ -271,14 +266,12 @@ public class JavaToTypescript {
                                 preprocessorNames.add("java.io.FileInputStream");
                                 imports.add(new ImportDeclaration("fs.Fs", false, true));
                             }
-                        } else if (cls.equals("InputStream")) {
-                            if (!preprocessorNames.contains("java.io.InputStream")) {
-                                // preProcessors.add(new JavaFileInputStreamVisitor());
-                                preprocessorNames.add("java.io.InputStream");
-                                imports.add(new ImportDeclaration("stream.Readable", false, false));
+                        } else if (cls.equals("StringWriter")) {
+                            if (!preprocessorNames.contains("java.io.StringWriter")) {
+                                preProcessors.add(new JavaStringStreamVisitor());
+                                preprocessorNames.add("java.io.StringWriter");
+                                imports.add(new ImportDeclaration("stream.Writable", false, false));
                             }
-                        } else if (cls.equals("Map")) {
-                            ; // do nothing 'cause Map is native to TS.
                         }
                     } else {
                         imports.add((ImportDeclaration) importDecl.accept(this, arg));
