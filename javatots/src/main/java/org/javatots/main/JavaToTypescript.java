@@ -2,10 +2,12 @@ package org.javatots.main;
 
 import com.github.javaparser.ast.*;
 import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.ReferenceType;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
 import com.github.javaparser.ast.visitor.Visitable;
 import com.github.javaparser.ast.visitor.VoidVisitor;
+import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.printer.SourcePrinter;
 import com.github.javaparser.printer.configuration.DefaultConfigurationOption;
 import com.github.javaparser.printer.configuration.DefaultPrinterConfiguration;
@@ -20,6 +22,7 @@ import org.javatots.config.ModuleMap;
 import org.javatots.config.PackageMap;
 import org.javatots.transformers.DelombokVisitor;
 import org.javatots.transformers.JavaCoreTypesVisitor;
+import org.javatots.transformers.JavaFileInputStreamVisitor;
 import org.javatots.transformers.JavaListToArrayVisitor;
 import org.yaml.snakeyaml.Yaml;
 
@@ -39,6 +42,7 @@ public class JavaToTypescript {
     // Path from execution root (probably the javatots module directory) to the repo root.
     protected final static String PATH_TO_REPO_ROOT = "../";
     protected final static String TYPESCRIPT_FILE_EXTENSION = "ts";
+    protected final String DOT_SLASH = "DOT_SLASHmarkerNoPackageShouldMatch"; // ugly hack to add relative imports to AST.
 
     // Config controls where to look for Java source and what Typescript src hierarchy to map it to
     protected final JtsConfig config;
@@ -90,6 +94,20 @@ public class JavaToTypescript {
 
             // iterate over found Java files
             for (Path p: files) {
+                // Find package siblings in case we need to explicitly import them.
+                final int pathLength = p.getNameCount();
+                final Path dir = p.subpath(0, pathLength - 1);
+                final Set<String> siblings = Arrays.stream(files).filter(neighbor ->
+                        !neighbor.equals(p)
+                        && neighbor.getNameCount() == pathLength
+                        && neighbor.subpath(0, pathLength - 1).equals(dir)
+                ).map(neighbor -> {
+                    String name = String.valueOf(neighbor.getName(pathLength - 1));
+                    int dot = name.lastIndexOf('.');
+                    return dot == -1 ? name : name.substring(0, dot);
+                }).collect(Collectors.toSet());
+
+                // Calculate java and typescript paths.
                 final String javaFilepath = String.valueOf(javaSrcRootPath.relativize(p));
                 String tsFileName = setExtension(String.valueOf(javaFilepath), TYPESCRIPT_FILE_EXTENSION);
 
@@ -108,7 +126,7 @@ public class JavaToTypescript {
                 // TS-ify file
                 Path tsFilePath = Path.of(this.config.outputDirectory,moduleMap.outputPath, tsFileName);
                 Log.info("-- "  + javaFilepath + " -> " + tsFilePath);
-                String transformed = this.transformFile(sourceRoot, String.valueOf(Path.of(String.valueOf(javaSrcRootPath), javaFilepath)));
+                String transformed = this.transformFile(sourceRoot, String.valueOf(Path.of(String.valueOf(javaSrcRootPath), javaFilepath)), siblings);
 
                 // Write result
                 Files.createDirectories(Path.of(new File(String.valueOf(tsFilePath)).getParent()));
@@ -134,9 +152,10 @@ public class JavaToTypescript {
      * Parse `filename`, convert Java source file to Typescript
      * @param sourceRoot
      * @param filename
-         * @return Typescript-conformant (ideally) file contents.
+         * @param siblings
+     * @return Typescript-conformant (ideally) file contents.
      */
-    public String transformFile(final SourceRoot sourceRoot, final String filename) {
+    public String transformFile(final SourceRoot sourceRoot, final String filename, final Set<String> siblings) {
 
         // apparently relative to Maven module root
         CompilationUnit cu = sourceRoot.parse("", filename);
@@ -157,14 +176,18 @@ public class JavaToTypescript {
             int iName = path.lastIndexOf('.');
             final String pkg = path.substring(0, iName);
             final String cls = path.substring(iName + 1);
-            if (importDecl.isStatic()) {
-//                printer.print("static ");
-            } else if (importDecl.isAsterisk()) {
-//                printer.print(".*");
-            } else if (path.startsWith("com.janeirodigital.shapetrees.core")) {
-                printer.println("import {  " + cls + " } from " + pkg + ";");
+            if (pkg.equals(DOT_SLASH)) {
+                printer.println("import { " + cls + " } from '" + "./" + cls + "';");
+//            } else if (path.startsWith("com.janeirodigital.shapetrees.core")) {
+//                printer.println("import {  " + cls + " } from " + pkg + ";");
             } else if (this.config.unknownImportTemplate != null) {
-                printer.println(String.format(this.config.unknownImportTemplate, cls, pkg));
+                // check importDecl.isStatic()
+                if (importDecl.isAsterisk()) {
+                    printer.println("import * as " + cls + "  from '" + pkg + "';");
+                } else {
+                    printer.println("import { " + cls + " } from '" + pkg + "';");
+                }
+//                printer.println(String.format(this.config.unknownImportTemplate, cls, pkg));
             }
         };
 
@@ -202,37 +225,70 @@ public class JavaToTypescript {
         preProcessors.add(new JavaCoreTypesVisitor());
         preprocessorNames.add("java core");
 
+        Set<String> referencedSiblings = new HashSet<String>();
+        cu.accept(new VoidVisitorAdapter<Set<String>>() {
+            @Override
+            public void visit(final ClassOrInterfaceType n, final Set<String> collector) {
+                final String className = n.getName().asString();
+                if (siblings.contains(className)) {
+                    collector.add(className);
+                }
+                super.visit(n, collector);
+            }
+        }, referencedSiblings);
+        System.out.println(referencedSiblings);
+
+
         cu.accept(new ModifierVisitor<Void>() {
             @Override
             public Visitable visit(final CompilationUnit n, final Void arg) {
-            NodeList<ImportDeclaration> imports = new NodeList<>();
-            final Iterator<ImportDeclaration> i = n.getImports().iterator();
-            while (i.hasNext()) {
-                ImportDeclaration importDecl = i.next();
-                final String path = importDecl.getName().asString();
-                int iName = path.lastIndexOf('.');
-                final String pkg = path.substring(0, iName);
-                final String cls = path.substring(iName + 1);
-                if (pkg.equals("lombok")) {
-                    if (!preprocessorNames.contains(pkg)) {
-                        preProcessors.add(new DelombokVisitor());
-                        preprocessorNames.add(pkg);
-                    }
-                } else if (pkg.equals("java.util")) {
-                    if (cls.equals("List")) {
-                        if (!preprocessorNames.contains("java.util.List")) {
-                            preProcessors.add(new JavaListToArrayVisitor());
-                            preprocessorNames.add("java.util.List");
+                NodeList<ImportDeclaration> imports = new NodeList<>();
+                final Iterator<ImportDeclaration> i = n.getImports().iterator();
+                while (i.hasNext()) {
+                    ImportDeclaration importDecl = i.next();
+                    final String path = importDecl.getName().asString();
+                    int iName = path.lastIndexOf('.');
+                    final String pkg = path.substring(0, iName);
+                    final String cls = path.substring(iName + 1);
+                    if (pkg.equals("lombok")) {
+                        if (!preprocessorNames.contains(pkg)) {
+                            preProcessors.add(new DelombokVisitor());
+                            preprocessorNames.add(pkg);
                         }
-                    } else if (cls.equals("Map")) {
-                        ; // do nothing 'cause Map is native to TS.
+                    } else if (pkg.equals("java.util")) {
+                        if (cls.equals("List")) {
+                            if (!preprocessorNames.contains("java.util.List")) {
+                                preProcessors.add(new JavaListToArrayVisitor());
+                                preprocessorNames.add("java.util.List");
+                            }
+                        } else if (cls.equals("Map")) {
+                            ; // do nothing 'cause Map is native to TS.
+                        }
+                    } else if (pkg.equals("java.io")) {
+                        if (cls.equals("FileInputStream")) {
+                            if (!preprocessorNames.contains("java.io.FileInputStream")) {
+                                preProcessors.add(new JavaFileInputStreamVisitor());
+                                preprocessorNames.add("java.io.FileInputStream");
+                                imports.add(new ImportDeclaration("fs.Fs", false, true));
+                            }
+                        } else if (cls.equals("InputStream")) {
+                            if (!preprocessorNames.contains("java.io.InputStream")) {
+                                // preProcessors.add(new JavaFileInputStreamVisitor());
+                                preprocessorNames.add("java.io.InputStream");
+                                imports.add(new ImportDeclaration("stream.Readable", false, false));
+                            }
+                        } else if (cls.equals("Map")) {
+                            ; // do nothing 'cause Map is native to TS.
+                        }
+                    } else {
+                        imports.add((ImportDeclaration) importDecl.accept(this, arg));
                     }
-                } else {
-                    imports.add((ImportDeclaration) importDecl.accept(this, arg));
                 }
-            }
-            n.setImports(imports);
-            return super.visit(n, arg);
+                for (String s : referencedSiblings) {
+                    imports.add(new ImportDeclaration(DOT_SLASH + "." + s, false, false));
+                }
+                n.setImports(imports);
+                return super.visit(n, arg);
             }
         }, null);
 

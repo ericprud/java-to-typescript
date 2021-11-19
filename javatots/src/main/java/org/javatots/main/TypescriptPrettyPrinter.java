@@ -300,10 +300,14 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         } else {
             this.printAnnotations(n.getAnnotations(), false, arg);
         }
+        boolean isFinal = n.getModifiers().stream().anyMatch(m -> m.getKeyword().equals(Modifier.Keyword.FINAL));
 
         Iterator i = n.getVariables().iterator();
 
         while(i.hasNext()) {
+            if (!isFinal) {
+                this.printer.print("let ");
+            }
             this.printModifiers(n.getModifiers());
             this.curType = n.getMaximumCommonType();
             ((VariableDeclarator)i.next()).accept(this, arg);
