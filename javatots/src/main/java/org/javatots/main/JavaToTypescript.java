@@ -158,7 +158,7 @@ public class JavaToTypescript {
         CompilationUnit cu = sourceRoot.parse("", filename);
 
         Log.info("Porting file " + filename + ":");
-        TypescriptPrettyPrinter visitor = new TypescriptPrettyPrinter(getPrinterConfiguration(), cu.getPackageDeclaration());
+        TypescriptPrettyPrinter prettyPrinter = new TypescriptPrettyPrinter(getPrinterConfiguration(), cu.getPackageDeclaration());
 
         final BiConsumer<SourcePrinter, Name> handlePackage = (final SourcePrinter printer, final Name packageName) -> {
             if (this.config.packageTemplate != null) {
@@ -195,7 +195,7 @@ public class JavaToTypescript {
 
                 while (i.hasNext()) {
                     ReferenceType name = i.next();
-                    name.accept((VoidVisitor) visitor, null);
+                    name.accept((VoidVisitor) prettyPrinter, null);
                     if (i.hasNext()) {
                         printer.print(", ");
                     }
@@ -217,22 +217,15 @@ public class JavaToTypescript {
             // could call this on each to get overloaded form: annotation.accept(this, null);
         };
 
-        ArrayList<ModifierVisitor<Void>> preProcessors = new ArrayList<>();
-        Set<String> preprocessorNames = new HashSet<String>();
+        // Create a list of pre-processors which will manipulate the AST to use Typescript types and methods.
+        ArrayList<ModifierVisitor<?>> preProcessors = new ArrayList<>();
+        Set<String> preprocessorNames = new HashSet<>();
         preProcessors.add(new JavaCoreTypesVisitor());
         preprocessorNames.add("java core");
 
-        Set<String> referencedSiblings = new HashSet<String>();
-        cu.accept(new VoidVisitorAdapter<Set<String>>() {
-            @Override
-            public void visit(final ClassOrInterfaceType n, final Set<String> collector) {
-                final String className = n.getName().asString();
-                if (siblings.contains(className)) {
-                    collector.add(className);
-                }
-                super.visit(n, collector);
-            }
-        }, referencedSiblings);
+        // Get the set of referenced siblings that are referenced in the cu.
+        Set<String> referencedSiblings = new HashSet<>();
+        new ClassListVistor(siblings).visit(cu, referencedSiblings);
 
         cu.accept(new ModifierVisitor<Void>() {
             @Override
@@ -286,17 +279,17 @@ public class JavaToTypescript {
         }, null);
 
 
-        for (ModifierVisitor<Void> preProcessor : preProcessors) {
-            cu.accept(preProcessor, null);
+        for (ModifierVisitor<?> preProcessor : preProcessors) {
+            preProcessor.visit(cu, null);
         }
 
-        visitor.setOnPackageDeclaration(handlePackage);
-        visitor.setOnImportDeclaration(handleImport);
-        visitor.setOnThrows(handleThrows);
-        visitor.setOnMethodAnnotations(handleMethodAnnotations);
+        prettyPrinter.setOnPackageDeclaration(handlePackage);
+        prettyPrinter.setOnImportDeclaration(handleImport);
+        prettyPrinter.setOnThrows(handleThrows);
+        prettyPrinter.setOnMethodAnnotations(handleMethodAnnotations);
 
-        cu.accept((VoidVisitor) visitor, null);
-        return visitor.toString();
+        prettyPrinter.visit(cu, null);
+        return prettyPrinter.toString();
     }
 
     /**
