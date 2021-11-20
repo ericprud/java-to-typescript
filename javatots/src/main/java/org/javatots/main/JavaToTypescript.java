@@ -182,7 +182,7 @@ public class JavaToTypescript {
             int iName = path.lastIndexOf('.');
             final String pkg = path.substring(0, iName);
             final String cls = path.substring(iName + 1);
-            if (pkg.equals(DOT_SLASH)) {
+            if (pkg.equals(this.DOT_SLASH)) {
                 printer.println("import { " + cls + " } from '" + "./" + cls + "';");
 //            } else if (path.startsWith("com.janeirodigital.shapetrees.core")) {
 //                printer.println("import {  " + className + " } from " + packageName + ";");
@@ -204,7 +204,7 @@ public class JavaToTypescript {
 
                 while (i.hasNext()) {
                     ReferenceType name = i.next();
-                    name.accept((VoidVisitor) prettyPrinter, null);
+                    name.accept(prettyPrinter, null);
                     if (i.hasNext()) {
                         printer.print(", ");
                     }
@@ -226,25 +226,36 @@ public class JavaToTypescript {
             // could call this on each to get overloaded form: annotation.accept(this, null);
         };
 
-        // Create a list of pre-processors which will manipulate the AST to use Typescript types and methods.
-        ArrayList<ModifierVisitor<?>> preProcessors = new ArrayList<>();
-        Set<String> handledImports = new HashSet<>();
-        preProcessors.add(new JavaCoreTypesVisitor());
-        handledImports.add("java core");
-
         // Get the set of referenced siblings that are referenced in the cu.
         Set<String> referencedSiblings = new HashSet<>();
         new ClassListVistor(siblings).visit(cu, referencedSiblings);
 
+        // The imports imply a list of pre-processors which will manipulate the AST to use Typescript types and methods.
+        for (ModifierVisitor<?> preProcessor : processImports(cu, referencedSiblings)) {
+            preProcessor.visit(cu, null);
+        }
+
+        prettyPrinter.setOnPackageDeclaration(handlePackage);
+        prettyPrinter.setOnImportDeclaration(handleImport);
+        prettyPrinter.setOnThrows(handleThrows);
+        prettyPrinter.setOnMethodAnnotations(handleMethodAnnotations);
+
+        prettyPrinter.visit(cu, null);
+        return prettyPrinter.toString();
+    }
+
+    private ArrayList<ModifierVisitor<?>> processImports(final CompilationUnit cu, final Set<String> referencedSiblings) {
+        ArrayList<ModifierVisitor<?>> preProcessors = new ArrayList<>();
         cu.accept(new ModifierVisitor<Void>() {
             @SneakyThrows // hides ClassNotFoundException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException
             @Override
             public Visitable visit(final CompilationUnit n, final Void arg) {
-                NodeList<ImportDeclaration> imports = new NodeList<>();
-                final Iterator<ImportDeclaration> i = n.getImports().iterator();
-                while (i.hasNext()) {
-                    ImportDeclaration importDecl = i.next();
+                Set<String> handledImports = new HashSet<>();
+                preProcessors.add(new JavaCoreTypesVisitor());
+                handledImports.add("java core");
 
+                NodeList<ImportDeclaration> imports = new NodeList<>();
+                for (final ImportDeclaration importDecl : n.getImports()) {
                     // Parse import directive
                     final String path = importDecl.getName().asString();
                     int iName = path.lastIndexOf('.');
@@ -273,7 +284,7 @@ public class JavaToTypescript {
 
                 // Add imports for referenced siblings in current package.
                 for (String s : referencedSiblings) {
-                    imports.add(new ImportDeclaration(DOT_SLASH + "." + s, false, false));
+                    imports.add(new ImportDeclaration(JavaToTypescript.this.DOT_SLASH + "." + s, false, false));
                 }
 
                 // Update imports with above changes
@@ -283,19 +294,7 @@ public class JavaToTypescript {
                 return super.visit(n, arg);
             }
         }, null);
-
-
-        for (ModifierVisitor<?> preProcessor : preProcessors) {
-            preProcessor.visit(cu, null);
-        }
-
-        prettyPrinter.setOnPackageDeclaration(handlePackage);
-        prettyPrinter.setOnImportDeclaration(handleImport);
-        prettyPrinter.setOnThrows(handleThrows);
-        prettyPrinter.setOnMethodAnnotations(handleMethodAnnotations);
-
-        prettyPrinter.visit(cu, null);
-        return prettyPrinter.toString();
+        return preProcessors;
     }
 
     /**
