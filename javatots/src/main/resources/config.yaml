@@ -9,13 +9,15 @@ unknownAnnotations: comment # comment, ignore, throw (everything else interprete
 moduleMaps:
   customer-db:
     srcRoot: src/main/java
-    outputPath: packages/custdb
+    outputPath: packages/custdb/src
     packageMaps:
-      - pkg: org.javatots.example
-        destPath: src
+      - pkg: org.javatots.example.customerdb.models
+        destPath: records
+      - pkg: org.javatots.example.customerdb
+        destPath:
   customer-app:
     srcRoot: src/main/java
     outputPath: packages/custapp
     packageMaps:
-      - pkg: org.javatots.example
+      - pkg: org.javatots.example.customerapp
         destPath: src

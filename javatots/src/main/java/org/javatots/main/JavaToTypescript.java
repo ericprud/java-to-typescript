@@ -5,7 +5,6 @@ import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.type.ReferenceType;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
 import com.github.javaparser.ast.visitor.Visitable;
-import com.github.javaparser.ast.visitor.VoidVisitor;
 import com.github.javaparser.printer.SourcePrinter;
 import com.github.javaparser.printer.configuration.DefaultConfigurationOption;
 import com.github.javaparser.printer.configuration.DefaultPrinterConfiguration;
@@ -99,12 +98,12 @@ public class JavaToTypescript {
             ;
 
             // iterate over found Java files
-            for (Path p: files) {
+            for (Path filePath: files) {
                 // Find package siblings in case we need to explicitly import them.
-                final int pathLength = p.getNameCount();
-                final Path dir = p.subpath(0, pathLength - 1);
+                final int pathLength = filePath.getNameCount();
+                final Path dir = filePath.subpath(0, pathLength - 1);
                 final Set<String> siblings = Arrays.stream(files).filter(neighbor ->
-                        !neighbor.equals(p)
+                        !neighbor.equals(filePath)
                         && neighbor.getNameCount() == pathLength
                         && neighbor.subpath(0, pathLength - 1).equals(dir)
                 ).map(neighbor -> {
@@ -114,25 +113,23 @@ public class JavaToTypescript {
                 }).collect(Collectors.toSet());
 
                 // Calculate java and typescript paths.
-                final String javaFilepath = String.valueOf(javaSrcRootPath.relativize(p));
-                String tsFileName = setExtension(String.valueOf(javaFilepath), TYPESCRIPT_FILE_EXTENSION);
-
-                // Find the first match in PackageMap
-                for (PackageMap packageMap: moduleMap.packageMaps) {
-                    final String pkgPath = packageMap.getPkgPath();
-                    if (javaFilepath.startsWith(pkgPath)) {
-                        String destPath = packageMap.destPath == null
-                                ? ""
-                                : packageMap.destPath;
-                        tsFileName = setExtension(String.valueOf(Path.of(destPath, javaFilepath.substring(packageMap.getPkgPath().length()))), TYPESCRIPT_FILE_EXTENSION);
-                        break;
-                    }
-                }
+                final String javaFilepath = String.valueOf(javaSrcRootPath.relativize(filePath));
+                PackageMap packageMap = moduleMap.packageMaps.stream().filter(pm1 ->
+                    javaFilepath.startsWith(pm1.getPkgPath())
+                ).findFirst().orElseThrow(() ->
+                    new IllegalStateException("moduleMap " + javaModuleName + " has no packageMap for source path " + javaFilepath)
+                );
+                final String tsFileName = setExtension(String.valueOf(Path.of(
+                        packageMap.destPath == null
+                        ? ""
+                        : packageMap.destPath, javaFilepath.substring(packageMap.getPkgPath().length())
+                )), TYPESCRIPT_FILE_EXTENSION);
 
                 // TS-ify file
                 Path tsFilePath = Path.of(this.config.outputDirectory,moduleMap.outputPath, tsFileName);
                 Log.info("-- "  + javaFilepath + " -> " + tsFilePath);
-                String transformed = this.transformFile(sourceRoot, String.valueOf(Path.of(String.valueOf(javaSrcRootPath), javaFilepath)), siblings);
+                final String sourceFileName = String.valueOf(Path.of(String.valueOf(javaSrcRootPath), javaFilepath));
+                String transformed = this.transformFile(sourceRoot, sourceFileName, siblings, packageMap);
 
                 // Write result
                 Files.createDirectories(Path.of(new File(String.valueOf(tsFilePath)).getParent()));
@@ -155,18 +152,19 @@ public class JavaToTypescript {
     }
 
     /**
-     * Parse `filename`, convert Java source file to Typescript
+     * Parse `sourceFileName`, convert Java source file to Typescript
      * @param sourceRoot
-     * @param filename
+     * @param sourceFileName
          * @param siblings
+     * @param packageMap
      * @return Typescript-conformant (ideally) file contents.
      */
-    public String transformFile(final SourceRoot sourceRoot, final String filename, final Set<String> siblings) {
+    public String transformFile(final SourceRoot sourceRoot, final String sourceFileName, final Set<String> siblings, final PackageMap packageMap) {
 
         // apparently relative to Maven module root
-        CompilationUnit cu = sourceRoot.parse("", filename);
+        CompilationUnit cu = sourceRoot.parse("", sourceFileName);
 
-        Log.info("Porting file " + filename + ":");
+        Log.info("Porting file " + sourceFileName + ":");
         TypescriptPrettyPrinter prettyPrinter = new TypescriptPrettyPrinter(getPrinterConfiguration(), cu.getPackageDeclaration());
 
         final BiConsumer<SourcePrinter, Name> handlePackage = (final SourcePrinter printer, final Name packageName) -> {
