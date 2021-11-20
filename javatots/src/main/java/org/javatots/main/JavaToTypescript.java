@@ -2,12 +2,10 @@ package org.javatots.main;
 
 import com.github.javaparser.ast.*;
 import com.github.javaparser.ast.expr.*;
-import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.ReferenceType;
 import com.github.javaparser.ast.visitor.ModifierVisitor;
 import com.github.javaparser.ast.visitor.Visitable;
 import com.github.javaparser.ast.visitor.VoidVisitor;
-import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import com.github.javaparser.printer.SourcePrinter;
 import com.github.javaparser.printer.configuration.DefaultConfigurationOption;
 import com.github.javaparser.printer.configuration.DefaultPrinterConfiguration;
@@ -17,6 +15,7 @@ import com.github.javaparser.utils.CodeGenerationUtils;
 import com.github.javaparser.utils.Log;
 import com.github.javaparser.utils.SourceRoot;
 
+import lombok.SneakyThrows;
 import org.javatots.config.JtsConfig;
 import org.javatots.config.ModuleMap;
 import org.javatots.config.PackageMap;
@@ -40,6 +39,16 @@ public class JavaToTypescript {
     protected final static String PATH_TO_REPO_ROOT = "../";
     protected final static String TYPESCRIPT_FILE_EXTENSION = "ts";
     protected final String DOT_SLASH = "DOT_SLASHmarkerNoPackageShouldMatch"; // ugly hack to add relative imports to AST.
+
+    // List of transformers to look for in imports
+    public static final ImportHandler[] IMPORT_HANDLERS = {
+            new ImportHandler("lombok", null, DelombokVisitor.class.getName()),
+            new ImportHandler("java.util", "List", JavaListToArrayVisitor.class.getName()),
+            new ImportHandler("java.util", "Map", null),
+            new ImportHandler("java.io", "FileInputStream", JavaFileInputStreamVisitor.class.getName(), "fs.Fs", false, true),
+            new ImportHandler("java.io", "StringWriter", JavaStringStreamVisitor.class.getName(), "stream.Writable", false, false),
+            new ImportHandler("java.io", null, null)
+    };
 
     // Config controls where to look for Java source and what Typescript src hierarchy to map it to
     protected final JtsConfig config;
@@ -176,7 +185,7 @@ public class JavaToTypescript {
             if (pkg.equals(DOT_SLASH)) {
                 printer.println("import { " + cls + " } from '" + "./" + cls + "';");
 //            } else if (path.startsWith("com.janeirodigital.shapetrees.core")) {
-//                printer.println("import {  " + cls + " } from " + pkg + ";");
+//                printer.println("import {  " + className + " } from " + packageName + ";");
             } else if (this.config.unknownImportTemplate != null) {
                 // check importDecl.isStatic()
                 if (importDecl.isAsterisk()) {
@@ -184,7 +193,7 @@ public class JavaToTypescript {
                 } else {
                     printer.println("import { " + cls + " } from '" + pkg + "';");
                 }
-//                printer.println(String.format(this.config.unknownImportTemplate, cls, pkg));
+//                printer.println(String.format(this.config.unknownImportTemplate, className, packageName));
             }
         };
 
@@ -219,61 +228,58 @@ public class JavaToTypescript {
 
         // Create a list of pre-processors which will manipulate the AST to use Typescript types and methods.
         ArrayList<ModifierVisitor<?>> preProcessors = new ArrayList<>();
-        Set<String> preprocessorNames = new HashSet<>();
+        Set<String> handledImports = new HashSet<>();
         preProcessors.add(new JavaCoreTypesVisitor());
-        preprocessorNames.add("java core");
+        handledImports.add("java core");
 
         // Get the set of referenced siblings that are referenced in the cu.
         Set<String> referencedSiblings = new HashSet<>();
         new ClassListVistor(siblings).visit(cu, referencedSiblings);
 
         cu.accept(new ModifierVisitor<Void>() {
+            @SneakyThrows // hides ClassNotFoundException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException
             @Override
             public Visitable visit(final CompilationUnit n, final Void arg) {
                 NodeList<ImportDeclaration> imports = new NodeList<>();
                 final Iterator<ImportDeclaration> i = n.getImports().iterator();
                 while (i.hasNext()) {
                     ImportDeclaration importDecl = i.next();
+
+                    // Parse import directive
                     final String path = importDecl.getName().asString();
                     int iName = path.lastIndexOf('.');
                     final String pkg = path.substring(0, iName);
                     final String cls = path.substring(iName + 1);
-                    if (pkg.equals("lombok")) {
-                        if (!preprocessorNames.contains(pkg)) {
-                            preProcessors.add(new DelombokVisitor());
-                            preprocessorNames.add(pkg);
-                        }
-                    } else if (pkg.equals("java.util")) {
-                        if (cls.equals("List")) {
-                            if (!preprocessorNames.contains("java.util.List")) {
-                                preProcessors.add(new JavaListToArrayVisitor());
-                                preprocessorNames.add("java.util.List");
-                            }
-                        } else if (cls.equals("Map")) {
-                            ; // do nothing 'cause Map is native to TS.
-                        }
-                    } else if (pkg.equals("java.io")) {
-                        if (cls.equals("FileInputStream")) {
-                            if (!preprocessorNames.contains("java.io.FileInputStream")) {
-                                preProcessors.add(new JavaFileInputStreamVisitor());
-                                preprocessorNames.add("java.io.FileInputStream");
-                                imports.add(new ImportDeclaration("fs.Fs", false, true));
-                            }
-                        } else if (cls.equals("StringWriter")) {
-                            if (!preprocessorNames.contains("java.io.StringWriter")) {
-                                preProcessors.add(new JavaStringStreamVisitor());
-                                preprocessorNames.add("java.io.StringWriter");
-                                imports.add(new ImportDeclaration("stream.Writable", false, false));
-                            }
-                        }
-                    } else {
+
+                    // Find corresponding transformer
+                    ImportHandler handler = Arrays.stream(IMPORT_HANDLERS).filter(tc -> tc.packageName.equals(pkg) && (tc.className == null || tc.className.equals(cls))).findFirst().orElse(null);
+                    if (handler == null) {
                         imports.add((ImportDeclaration) importDecl.accept(this, arg));
+                    } else {
+                        final String indexName = handler.packageName + '.' + handler.className;
+                        if (!handledImports.contains(indexName)) {
+                            if (handler.transformerClass != null) {
+                                final Class<ModifierVisitor<Void>> clazz = (Class<ModifierVisitor<Void>>) Class.forName(handler.transformerClass);
+                                final ModifierVisitor<Void> visitor = clazz.getDeclaredConstructor().newInstance();
+                                preProcessors.add(visitor);
+                            }
+                            if (handler.importName != null) {
+                                imports.add(new ImportDeclaration(handler.importName, handler.importIsStatic, handler.importIsAsterisk));
+                            }
+                            handledImports.add(indexName);
+                        }
                     }
                 }
+
+                // Add imports for referenced siblings in current package.
                 for (String s : referencedSiblings) {
                     imports.add(new ImportDeclaration(DOT_SLASH + "." + s, false, false));
                 }
+
+                // Update imports with above changes
                 n.setImports(imports);
+
+                // Execute the rest of the AST logic
                 return super.visit(n, arg);
             }
         }, null);
