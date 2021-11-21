@@ -37,7 +37,8 @@ public class JavaToTypescript {
     // Path from execution root (probably the javatots module directory) to the repo root.
     protected final static String PATH_TO_REPO_ROOT = "../";
     public final static String TYPESCRIPT_FILE_EXTENSION = "ts";
-    protected final String DOT_SLASH = "DOT_SLASHmarkerNoPackageShouldMatch"; // ugly hack to add relative imports to AST.
+    protected final static String DOT_SLASH = "DOT_SLASHmarkerNoPackageShouldMatch"; // ugly hack to add relative imports to AST.
+    protected final static String AT_SIGN = "AT_SIGNmarkerNoPackageShouldMatch"; // ugly hack to add relative imports to AST.
 
     // List of transformers to look for in imports
     public static final TypescriptImport[] noImports = {};
@@ -82,6 +83,16 @@ public class JavaToTypescript {
         Yaml yaml = new Yaml();
         InputStream inputStream = new FileInputStream(yamlFilePath);
         return yaml.loadAs(inputStream, JtsConfig.class);
+    }
+
+    public static String javaImportify(final String tsModule) {
+        final String ret = tsModule.replaceAll("/", ".");
+        return ret.startsWith("@") ? JavaToTypescript.AT_SIGN + ret.substring(1) : ret;
+    }
+
+    public static String typescriptImportify(final String tsModule) {
+        final String ret = tsModule.replaceAll("\\.", "/");
+        return ret;
     }
 
     /**
@@ -183,8 +194,8 @@ public class JavaToTypescript {
             final String cls = path.substring(iName + 1);
             if (pkg.equals(this.DOT_SLASH)) {
                 printer.println("import { " + cls + " } from '" + "./" + cls + "';");
-//            } else if (path.startsWith("com.janeirodigital.shapetrees.core")) {
-//                printer.println("import {  " + className + " } from " + packageName + ";");
+            } else if (pkg.startsWith(this.AT_SIGN)) {
+                printer.println("import { " + cls + " } from '" + "@" + typescriptImportify(pkg.substring(this.AT_SIGN.length())) + "';");
             } else if (this.config.unknownImportTemplate != null) {
                 // check importDecl.isStatic()
                 if (importDecl.isAsterisk()) {
@@ -230,7 +241,7 @@ public class JavaToTypescript {
         new ClassListVistor(siblings).visit(cu, referencedSiblings);
 
         // The imports imply a list of pre-processors which will manipulate the AST to use Typescript types and methods.
-        for (ModifierVisitor<?> preProcessor : processImports(cu, referencedSiblings)) {
+        for (ModifierVisitor<?> preProcessor : processImports(cu, referencedSiblings, moduleMap)) {
             preProcessor.visit(cu, null);
         }
 
@@ -243,7 +254,7 @@ public class JavaToTypescript {
         return prettyPrinter.toString();
     }
 
-    private ArrayList<ModifierVisitor<?>> processImports(final CompilationUnit cu, final Set<String> referencedSiblings) {
+    private ArrayList<ModifierVisitor<?>> processImports(final CompilationUnit cu, final Set<String> referencedSiblings, final ModuleMap moduleMap) {
         ArrayList<ModifierVisitor<?>> preProcessors = new ArrayList<>();
         cu.accept(new ModifierVisitor<Void>() {
             @SneakyThrows // hides ClassNotFoundException, NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException
@@ -265,13 +276,9 @@ public class JavaToTypescript {
                     ImportHandler handler = Arrays.stream(IMPORT_HANDLERS).filter(tc -> tc.packageName.equals(pkg) && (tc.className == null || tc.className.equals(cls))).findFirst().orElse(null);
                     if (handler == null) {
                         // final ImportDeclaration importDecl = (ImportDeclaration) importDecl.accept(this, arg); // visit in case it gets modified.
-                        Optional<String> mappedName = JavaToTypescript.this.config.getMappedNameForPackage(importDecl.getNameAsString());
+                        Optional<String> mappedName = JavaToTypescript.this.config.getMappedNameForPackage(importDecl.getNameAsString(), moduleMap);
                         if (!mappedName.isEmpty()) {
-                            if (mappedName.get().equals(".")) {
-                                Optional<String> i = JavaToTypescript.this.config.getMappedNameForPackage(importDecl.getNameAsString());
-                                System.out.println(i.get());
-                            }
-                            importDecl.setName(mappedName.get());
+                            importDecl.setName(mappedName.get() + '.' + cls);
                         }
                         imports.add(importDecl);
                     } else {

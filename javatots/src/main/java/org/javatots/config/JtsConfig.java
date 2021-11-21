@@ -2,6 +2,7 @@ package org.javatots.config;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.javatots.main.JavaToTypescript;
 
 import java.util.Map;
 import java.util.Optional;
@@ -29,11 +30,11 @@ public class JtsConfig {
                 '}';
     }
 
-    public Optional<String> getMappedNameForPackage(final String packageName) {
+    public Optional<String> getMappedNameForPackage(final String packageName, final ModuleMap fromModuleMap) {
         for (ModuleMap m: this.moduleMaps.values()) {
             Optional<String> optName = m.getMapppedNameForPackageName(packageName);
             if (!optName.isEmpty()) {
-                return optName;
+                return Optional.of((m == fromModuleMap ? "" : JavaToTypescript.javaImportify(m.tsModule) + ".") + optName.get());
             }
         }
         return Optional.empty();
