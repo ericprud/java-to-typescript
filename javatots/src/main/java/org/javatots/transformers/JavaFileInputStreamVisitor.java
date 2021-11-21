@@ -19,7 +19,7 @@ public class JavaFileInputStreamVisitor extends ModifierVisitor<Void> {
     @Override
     public Visitable visit(final ObjectCreationExpr n, final Void arg) {
         if (n.getType().asString().equals("FileInputStream")) {
-            return new MethodCallExpr(n.getScope().orElse(null), "Fs.createReadStream", (NodeList<Expression>)n.getArguments());
+            return new MethodCallExpr(n.getScope().orElse(null), "Fs.createReadStream", n.getArguments());
         } else {
             return super.visit(n, arg);
         }

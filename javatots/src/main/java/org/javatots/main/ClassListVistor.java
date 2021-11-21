@@ -18,7 +18,7 @@ public class ClassListVistor extends VoidVisitorAdapter<Set<String>> {
     @Override
     public void visit(final ClassOrInterfaceType n, final Set<String> collector) {
         final String className = n.getName().asString();
-        if (intersectWith == null || intersectWith.contains(className)) {
+        if (this.intersectWith == null || this.intersectWith.contains(className)) {
             collector.add(className);
         }
         super.visit(n, collector);

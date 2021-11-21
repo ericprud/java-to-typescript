@@ -1,5 +1,8 @@
 package org.javatots.config;
 
+import org.javatots.main.JavaToTypescript;
+
+import java.nio.file.Path;
 import java.util.Optional;
 
 /**
@@ -23,5 +26,19 @@ public class PackageMap {
                 "pkg='" + this.pkg + '\'' +
                 ", destPath='" + this.destPath + '\'' +
                 '}';
+    }
+
+    public String getFileName(final String javaFilePath) {
+        return JavaToTypescript.setExtension(String.valueOf(Path.of(
+                this.destPath == null
+                ? ""
+                : this.destPath, javaFilePath.substring(getPkgPath().length())
+        )), JavaToTypescript.TYPESCRIPT_FILE_EXTENSION);
+    }
+
+    public String getPackageName(final String javaPackagepPath) {
+        return (this.destPath == null
+        ? ""
+        : this.destPath.replaceAll("/", "\\.") + '.') + javaPackagepPath.substring(getPkgPath().length() + 1);
     }
 }

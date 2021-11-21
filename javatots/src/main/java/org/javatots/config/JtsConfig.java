@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Java-to-typescript (javatots) configuration; probably loaded from YAML.
@@ -28,4 +29,13 @@ public class JtsConfig {
                 '}';
     }
 
+    public Optional<String> getMappedNameForPackage(final String packageName) {
+        for (ModuleMap m: this.moduleMaps.values()) {
+            Optional<String> optName = m.getMapppedNameForPackageName(packageName);
+            if (!optName.isEmpty()) {
+                return optName;
+            }
+        }
+        return Optional.empty();
+    }
 }

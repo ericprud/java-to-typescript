@@ -36,7 +36,7 @@ public class JavaToTypescript {
     protected final static String TEST_CONFIG_PATH = "javatots/src/main/resources/config.yaml";
     // Path from execution root (probably the javatots module directory) to the repo root.
     protected final static String PATH_TO_REPO_ROOT = "../";
-    protected final static String TYPESCRIPT_FILE_EXTENSION = "ts";
+    public final static String TYPESCRIPT_FILE_EXTENSION = "ts";
     protected final String DOT_SLASH = "DOT_SLASHmarkerNoPackageShouldMatch"; // ugly hack to add relative imports to AST.
 
     // List of transformers to look for in imports
@@ -114,22 +114,14 @@ public class JavaToTypescript {
 
                 // Calculate java and typescript paths.
                 final String javaFilepath = String.valueOf(javaSrcRootPath.relativize(filePath));
-                PackageMap packageMap = moduleMap.packageMaps.stream().filter(pm1 ->
-                    javaFilepath.startsWith(pm1.getPkgPath())
-                ).findFirst().orElseThrow(() ->
-                    new IllegalStateException("moduleMap " + javaModuleName + " has no packageMap for source path " + javaFilepath)
-                );
-                final String tsFileName = setExtension(String.valueOf(Path.of(
-                        packageMap.destPath == null
-                        ? ""
-                        : packageMap.destPath, javaFilepath.substring(packageMap.getPkgPath().length())
-                )), TYPESCRIPT_FILE_EXTENSION);
+                PackageMap packageMap = moduleMap.expectPackageMapForFile(javaModuleName, javaFilepath);
+                final String tsFileName = packageMap.getFileName(javaFilepath);
 
                 // TS-ify file
                 Path tsFilePath = Path.of(this.config.outputDirectory,moduleMap.outputPath, tsFileName);
                 Log.info("-- "  + javaFilepath + " -> " + tsFilePath);
                 final String sourceFileName = String.valueOf(Path.of(String.valueOf(javaSrcRootPath), javaFilepath));
-                String transformed = this.transformFile(sourceRoot, sourceFileName, siblings, packageMap);
+                String transformed = this.transformFile(sourceRoot, sourceFileName, siblings, moduleMap, packageMap);
 
                 // Write result
                 Files.createDirectories(Path.of(new File(String.valueOf(tsFilePath)).getParent()));
@@ -146,7 +138,7 @@ public class JavaToTypescript {
      * @param ext
      * @return
      */
-    private static String setExtension(final String filename, final String ext) {
+    public static String setExtension(final String filename, final String ext) {
         int idx = filename.lastIndexOf('.');
         return filename.substring(0, idx) + '.' + ext;
     }
@@ -156,10 +148,11 @@ public class JavaToTypescript {
      * @param sourceRoot
      * @param sourceFileName
          * @param siblings
+     * @param moduleMap
      * @param packageMap
      * @return Typescript-conformant (ideally) file contents.
      */
-    public String transformFile(final SourceRoot sourceRoot, final String sourceFileName, final Set<String> siblings, final PackageMap packageMap) {
+    public String transformFile(final SourceRoot sourceRoot, final String sourceFileName, final Set<String> siblings, final ModuleMap moduleMap, final PackageMap packageMap) {
 
         // apparently relative to Maven module root
         CompilationUnit cu = sourceRoot.parse("", sourceFileName);
@@ -178,7 +171,7 @@ public class JavaToTypescript {
 
             final String path = importDecl.getName().asString();
             int iName = path.lastIndexOf('.');
-            final String pkg = path.substring(0, iName);
+            final String pkg = iName == -1 ? "" : path.substring(0, iName);
             final String cls = path.substring(iName + 1);
             if (pkg.equals(this.DOT_SLASH)) {
                 printer.println("import { " + cls + " } from '" + "./" + cls + "';");
@@ -263,7 +256,16 @@ public class JavaToTypescript {
                     // Find corresponding transformer
                     ImportHandler handler = Arrays.stream(IMPORT_HANDLERS).filter(tc -> tc.packageName.equals(pkg) && (tc.className == null || tc.className.equals(cls))).findFirst().orElse(null);
                     if (handler == null) {
-                        imports.add((ImportDeclaration) importDecl.accept(this, arg));
+                        // final ImportDeclaration importDecl = (ImportDeclaration) importDecl.accept(this, arg); // visit in case it gets modified.
+                        Optional<String> mappedName = JavaToTypescript.this.config.getMappedNameForPackage(importDecl.getNameAsString());
+                        if (!mappedName.isEmpty()) {
+                            if (mappedName.get().equals(".")) {
+                                Optional<String> i = JavaToTypescript.this.config.getMappedNameForPackage(importDecl.getNameAsString());
+                                System.out.println(i.get());
+                            }
+                            importDecl.setName(mappedName.get());
+                        }
+                        imports.add(importDecl);
                     } else {
                         final String indexName = handler.packageName + '.' + handler.className;
                         if (!handledImports.contains(indexName)) {
