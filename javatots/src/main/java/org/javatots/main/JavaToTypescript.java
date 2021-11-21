@@ -40,13 +40,21 @@ public class JavaToTypescript {
     protected final String DOT_SLASH = "DOT_SLASHmarkerNoPackageShouldMatch"; // ugly hack to add relative imports to AST.
 
     // List of transformers to look for in imports
+    public static final TypescriptImport[] noImports = {};
+    public static final TypescriptImport[] fisImports = {
+            new TypescriptImport("fs.Fs", false, true),
+            new TypescriptImport("stream.Readable", false, false)
+    };
+    public static final TypescriptImport[] swImports = {
+            new TypescriptImport("stream.Writable", false, false)
+    };
     public static final ImportHandler[] IMPORT_HANDLERS = {
-            new ImportHandler("lombok", null, DelombokVisitor.class.getName()),
-            new ImportHandler("java.util", "List", JavaListToArrayVisitor.class.getName()),
-            new ImportHandler("java.util", "Map", null),
-            new ImportHandler("java.io", "FileInputStream", JavaFileInputStreamVisitor.class.getName(), "fs.Fs", false, true),
-            new ImportHandler("java.io", "StringWriter", JavaStringWriterVisitor.class.getName(), "stream.Writable", false, false),
-            new ImportHandler("java.io", null, null)
+            new ImportHandler("lombok", null, DelombokVisitor.class.getName(), noImports),
+            new ImportHandler("java.util", "List", JavaListToArrayVisitor.class.getName(), noImports),
+            new ImportHandler("java.util", "Map", null, noImports),
+            new ImportHandler("java.io", "FileInputStream", JavaFileInputStreamVisitor.class.getName(), fisImports),
+            new ImportHandler("java.io", "StringWriter", JavaStringWriterVisitor.class.getName(), swImports),
+            new ImportHandler("java.io", null, null, noImports)
     };
 
     // Config controls where to look for Java source and what Typescript src hierarchy to map it to
@@ -274,8 +282,8 @@ public class JavaToTypescript {
                                 final ModifierVisitor<Void> visitor = clazz.getDeclaredConstructor().newInstance();
                                 preProcessors.add(visitor);
                             }
-                            if (handler.importName != null) {
-                                imports.add(new ImportDeclaration(handler.importName, handler.importIsStatic, handler.importIsAsterisk));
+                            for (TypescriptImport typescriptImport : handler.typescriptImports) {
+                                imports.add(new ImportDeclaration(typescriptImport.importName, typescriptImport.importIsStatic, typescriptImport.importIsAsterisk));
                             }
                             handledImports.add(indexName);
                         }
