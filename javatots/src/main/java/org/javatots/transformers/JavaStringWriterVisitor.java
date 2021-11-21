@@ -13,10 +13,10 @@ import com.github.javaparser.ast.visitor.Visitable;
  * e.g. `StringWriter writer = new StringWriter();`
  *   -> `writer: Writable = new Writable();`
  */
-public class JavaStringStreamVisitor extends ModifierVisitor<Void> {
+public class JavaStringWriterVisitor extends ModifierVisitor<Void> {
     @Override
     public Visitable visit(final ClassOrInterfaceType n, final Void arg) {
-        if (n.asString().equals("StringStream")) {
+        if (n.asString().equals("StringWriter")) {
             n.setName("Writable");
         }
         return super.visit(n, arg);

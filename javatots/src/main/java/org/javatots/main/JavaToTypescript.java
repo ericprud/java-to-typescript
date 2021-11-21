@@ -45,7 +45,7 @@ public class JavaToTypescript {
             new ImportHandler("java.util", "List", JavaListToArrayVisitor.class.getName()),
             new ImportHandler("java.util", "Map", null),
             new ImportHandler("java.io", "FileInputStream", JavaFileInputStreamVisitor.class.getName(), "fs.Fs", false, true),
-            new ImportHandler("java.io", "StringWriter", JavaStringStreamVisitor.class.getName(), "stream.Writable", false, false),
+            new ImportHandler("java.io", "StringWriter", JavaStringWriterVisitor.class.getName(), "stream.Writable", false, false),
             new ImportHandler("java.io", null, null)
     };
 
