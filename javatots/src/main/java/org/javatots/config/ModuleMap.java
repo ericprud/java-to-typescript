@@ -33,11 +33,8 @@ public class ModuleMap {
 
     public Optional<String> getMapppedNameForPackageName(final String packageName) {
         final String javaFilepath = packageName.replaceAll("\\.", "/");
-        return this.packageMaps.stream().filter(pm1 -> {
-            boolean ret = javaFilepath.startsWith(pm1.getPkgPath());
-            return ret;
-        }).map(pm1 -> {
-            return pm1.getPackageName(packageName);
-        }).findFirst();
+        return this.packageMaps.stream()
+                .filter(pm1 -> javaFilepath.startsWith(pm1.getPkgPath()))
+                .map(pm1 -> pm1.getPackageName(packageName)).findFirst();
     }
 }

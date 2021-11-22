@@ -4,11 +4,9 @@ import com.github.javaparser.ast.*;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.AnnotationExpr;
-import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.Name;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.nodeTypes.NodeWithVariables;
-import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
@@ -133,7 +131,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
                 remainingModifiers.add(m);
             }
         }
-        this.printModifiers(remainingModifiers);
+        this.printModifiers(remainingModifiers, TypescriptFinalKeyword.CONST);
         if (n.isInterface()) {
             this.printer.print("interface ");
         } else {
@@ -216,7 +214,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         if (override && !n.getName().asString().equals("toString")) {
             this.printer.print("override ");
         }
-        this.printModifiers(n.getModifiers());
+        this.printModifiers(n.getModifiers(), TypescriptFinalKeyword.CONST);
         this.printTypeParameters(n.getTypeParameters(), arg);
         if (!Utils.isNullOrEmpty(n.getTypeParameters())) {
             this.printer.print(" ");
@@ -281,7 +279,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         Iterator i = n.getVariables().iterator();
 
         while(i.hasNext()) {
-            this.printModifiers(n.getModifiers()); // TODO: I don't know if there's TS analog to `const foo = {}, bar = [];` so I moved the modifiers in the loop.
+            this.printModifiers(n.getModifiers(), TypescriptFinalKeyword.READONLY); // TODO: I don't know if there's TS analog to `const foo = {}, bar = [];` so I moved the modifiers in the loop.
             this.curType = n.getMaximumCommonType();
             ((VariableDeclarator)i.next()).accept(this, arg);
             this.curType = Optional.empty();
@@ -308,7 +306,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
             if (!isFinal) {
                 this.printer.print("let ");
             }
-            this.printModifiers(n.getModifiers());
+            this.printModifiers(n.getModifiers(), TypescriptFinalKeyword.CONST);
             this.curType = n.getMaximumCommonType();
             ((VariableDeclarator)i.next()).accept(this, arg);
             this.curType = Optional.empty();
@@ -316,27 +314,77 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
 
     }
 
-    protected void printModifiers(final NodeList<Modifier> modifiers) {
+    public enum TypescriptFinalKeyword {
+        CONST("const"),
+        READONLY("readonly"),
+        COMMENT("/*const*/");
+
+        public String getValue() {
+            return this.value;
+        }
+
+        private final String value;
+
+        TypescriptFinalKeyword(String value) {
+            this.value = value;
+        }
+    }
+
+    protected void printModifiers(final NodeList<Modifier> modifiers, final TypescriptFinalKeyword typescriptFinalKeyword) {
         if (modifiers.size() > 0) {
-            String tsQualifier = this.inMethodParameter ? "readonly" : "const";
-            this.printer.print(modifiers
-                    .stream()
-                    .map(Modifier::getKeyword)
-                    .map(Modifier.Keyword::asString)
-                    .filter(
-                        s -> this.inMethod || !s.equals("final") // https://www.typescriptlang.org/play told me "A class member cannot have the 'const' keyword."
-                    )
-                    .map(
-                        s -> s.equals("final")
-                                ? tsQualifier
-                                : s
-                    )
-                    .collect(Collectors.joining(" "))
-                    + " "
-            );
+            String[] tsModifiers = {null, null, null}; // where each modifier will appear.
+            for (Modifier modifier: modifiers) {
+                final Modifier.Keyword keyword = modifier.getKeyword();
+                final String representation = keyword == Modifier.Keyword.FINAL // The `final` concept in Java has
+                        ? typescriptFinalKeyword.getValue() // context-dependent representations in Typescript.
+                        : modifier.getKeyword().asString(); // Otherwise, both languages share common keywords
+                final int slot = TYPESCRIPT_MODIFIER_SLOTS.get(keyword);
+                tsModifiers[slot] = representation;
+            }
+            if (true) {
+                String tsText = Arrays.stream(tsModifiers)
+                        .filter(s -> s != null)
+                        .collect(Collectors.joining(" "));
+                if (tsText.length() > 0)
+                    printer.print( tsText + " ");
+            } else {
+                Set<Modifier.Keyword> keywords = modifiers.stream().map(Modifier::getKeyword).collect(Collectors.toSet());
+                String tsQualifier = this.inMethodParameter ? "readonly" : "const";
+                this.printer.print(modifiers
+                        .stream()
+                        .map(Modifier::getKeyword)
+                        .map(Modifier.Keyword::asString)
+                        .filter(
+                                s -> this.inMethod || !s.equals("final") // https://www.typescriptlang.org/play told me "A class member cannot have the 'const' keyword."
+                        )
+                        .map(
+                                s -> s.equals("final")
+                                        ? tsQualifier
+                                        : s
+                        )
+                        .collect(Collectors.joining(" "))
+                        + " "
+                );
+            }
         }
 
     }
+
+    static final Map<Modifier.Keyword, Integer> TYPESCRIPT_MODIFIER_SLOTS = Map.of(
+//            Modifier.Keyword.DEFAULT, 1,
+            Modifier.Keyword.PUBLIC, 0,
+            Modifier.Keyword.PROTECTED, 0,
+            Modifier.Keyword.PRIVATE, 0,
+            Modifier.Keyword.ABSTRACT, 1,
+            Modifier.Keyword.STATIC, 1,
+            Modifier.Keyword.FINAL, 2/*,
+            Modifier.Keyword.TRANSIENT, 1,
+            Modifier.Keyword.VOLATILE, 1,
+            Modifier.Keyword.SYNCHRONIZED, 1,
+            Modifier.Keyword.NATIVE, 1,
+            Modifier.Keyword.STRICTFP, 1,
+            Modifier.Keyword.TRANSITIVE, 1*/
+    );
 
     @Override
     public void visit(final VariableDeclarator n, final Void arg) {
@@ -383,7 +431,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         this.printOrphanCommentsBeforeThisChildNode(n);
         this.printComment(n.getComment(), arg);
         this.printAnnotations(n.getAnnotations(), false, arg);
-        this.printModifiers(n.getModifiers());
+        this.printModifiers(n.getModifiers(), TypescriptFinalKeyword.COMMENT);
         if (n.isVarArgs()) {
             this.printAnnotations(n.getVarArgsAnnotations(), false, arg);
             this.printer.print("...");
@@ -403,7 +451,7 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         this.printOrphanCommentsBeforeThisChildNode(n);
         this.printComment(n.getComment(), arg);
         this.printMemberAnnotations(n.getAnnotations(), arg);
-        this.printModifiers(n.getModifiers());
+        this.printModifiers(n.getModifiers(), TypescriptFinalKeyword.CONST);
         this.printTypeParameters(n.getTypeParameters(), arg);
         if (n.isGeneric()) {
             this.printer.print(" ");
