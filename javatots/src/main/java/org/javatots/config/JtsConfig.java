@@ -34,7 +34,7 @@ public class JtsConfig {
         for (ModuleMap m: this.moduleMaps.values()) {
             Optional<String> optName = m.getMapppedNameForPackageName(packageName);
             if (!optName.isEmpty()) {
-                return Optional.of((m == fromModuleMap ? JavaToTypescript.DOT_SLASH : JavaToTypescript.javaImportify(m.tsModule) + ".") + optName.get());
+                return Optional.of(JavaToTypescript.javaImportify(((m == fromModuleMap ? "./" : m.tsModule + ".") + optName.get())));
             }
         }
         return Optional.empty();

@@ -32,12 +32,12 @@ import java.util.stream.Collectors;
  * Read config file, walk java modules there-in, convert them to Typescript.
  */
 public class JavaToTypescript {
+    public final static String TYPESCRIPT_FILE_EXTENSION = "ts";
     // Default configuration to read if none specified on command line.
     protected final static String TEST_CONFIG_PATH = "javatots/src/main/resources/config.yaml";
     // Path from execution root (probably the javatots module directory) to the repo root.
     protected final static String PATH_TO_REPO_ROOT = "../";
-    public final static String TYPESCRIPT_FILE_EXTENSION = "ts";
-    public final static String DOT_SLASH = "__DOT_SLASHmarkerNoPackageShouldMatch__"; // ugly hack to add relative imports to AST.
+    protected final static String DOT_SLASH = "__DOT_SLASHmarkerNoPackageShouldMatch__"; // ugly hack to add relative imports to AST.
     protected final static String AT_SIGN = "__AT_SIGNmarkerNoPackageShouldMatch__"; // ugly hack to add relative imports to AST.
 
     // List of transformers to look for in imports
@@ -77,22 +77,6 @@ public class JavaToTypescript {
         final JtsConfig config = loadConfig(configPath);
         SourceRoot sourceRoot = new SourceRoot(CodeGenerationUtils.mavenModuleRoot(JavaToTypescript.class).resolve(PATH_TO_REPO_ROOT));
         new JavaToTypescript(config).walkModules(sourceRoot);
-    }
-
-    public static JtsConfig loadConfig(final String yamlFilePath) throws FileNotFoundException {
-        Yaml yaml = new Yaml();
-        InputStream inputStream = new FileInputStream(yamlFilePath);
-        return yaml.loadAs(inputStream, JtsConfig.class);
-    }
-
-    public static String javaImportify(final String tsModule) {
-        final String ret = tsModule.replaceAll("/", ".");
-        return ret.startsWith("@") ? JavaToTypescript.AT_SIGN + ret.substring(1) : ret;
-    }
-
-    public static String typescriptImportify(final String tsModule) {
-        final String ret = tsModule.replaceAll("\\.", "/");
-        return ret;
     }
 
     /**
@@ -152,17 +136,6 @@ public class JavaToTypescript {
     }
 
     /**
-     * Given a filename, change the extension to ext.
-     * @param filename
-     * @param ext
-     * @return
-     */
-    public static String setExtension(final String filename, final String ext) {
-        int idx = filename.lastIndexOf('.');
-        return filename.substring(0, idx) + '.' + ext;
-    }
-
-    /**
      * Parse `sourceFileName`, convert Java source file to Typescript
      * @param sourceRoot
      * @param sourceFileName
@@ -190,21 +163,16 @@ public class JavaToTypescript {
 
             final String path = importDecl.getName().asString();
             int iName = path.lastIndexOf('.');
-            final String pkg = iName == -1 ? "" : path.substring(0, iName);
+            final String pkg = iName == -1 ? "" : typescriptImportify(path.substring(0, iName)); // map back from names with slashes and special character markers
             final String cls = path.substring(iName + 1);
-            if (pkg.startsWith(this.DOT_SLASH)) {
-                printer.println("import { " + cls + " } from '" + "./" + typescriptImportify(pkg.substring(this.DOT_SLASH.length())) + "';");
-            } else if (pkg.startsWith(this.AT_SIGN)) {
-                printer.println("import { " + cls + " } from '" + "@" + typescriptImportify(pkg.substring(this.AT_SIGN.length())) + "';");
-            } else if (this.config.unknownImportTemplate != null) {
-                // check importDecl.isStatic()
-                if (importDecl.isAsterisk()) {
-                    printer.println("import * as " + cls + " from '" + pkg + "';");
-                } else {
-                    printer.println("import { " + cls + " } from '" + pkg + "';");
-                }
-//                printer.println(String.format(this.config.unknownImportTemplate, className, packageName));
+            // if (this.config.unknownImportTemplate != null)
+            // check importDecl.isStatic()
+            if (importDecl.isAsterisk()) {
+                printer.println("import * as " + cls + " from '" + pkg + "';");
+            } else {
+                printer.println("import { " + cls + " } from '" + pkg + "';");
             }
+            // printer.println(String.format(this.config.unknownImportTemplate, className, packageName));
         };
 
         final BiConsumer<SourcePrinter, NodeList<ReferenceType>> handleThrows = (final SourcePrinter printer, final NodeList<ReferenceType> throwsList) -> {
@@ -312,6 +280,40 @@ public class JavaToTypescript {
             }
         }, null);
         return preProcessors;
+    }
+
+    /**
+     * Given a filename, change the extension to ext.
+     * @param filename
+     * @param ext
+     * @return
+     */
+    public static String setExtension(final String filename, final String ext) {
+        int idx = filename.lastIndexOf('.');
+        return filename.substring(0, idx) + '.' + ext;
+    }
+
+    public static String javaImportify(final String tsModule) {
+        return tsModule.startsWith("./")
+                ? JavaToTypescript.DOT_SLASH + tsModule.substring(2).replaceAll("/", ".")
+                : tsModule.startsWith("@")
+                ? JavaToTypescript.AT_SIGN + tsModule.substring(1).replaceAll("/", ".")
+                : tsModule.replaceAll("/", ".");
+    }
+
+    public static String typescriptImportify(final String tsModule) {
+        final String ret = tsModule.replaceAll("\\.", "/");
+        return ret.startsWith(JavaToTypescript.AT_SIGN)
+                ? "@" + ret.substring(JavaToTypescript.AT_SIGN.length())
+                : ret.startsWith(JavaToTypescript.DOT_SLASH)
+                ? "./" + ret.substring(JavaToTypescript.DOT_SLASH.length())
+                : ret;
+    }
+
+    public static JtsConfig loadConfig(final String yamlFilePath) throws FileNotFoundException {
+        Yaml yaml = new Yaml();
+        InputStream inputStream = new FileInputStream(yamlFilePath);
+        return yaml.loadAs(inputStream, JtsConfig.class);
     }
 
     /**
