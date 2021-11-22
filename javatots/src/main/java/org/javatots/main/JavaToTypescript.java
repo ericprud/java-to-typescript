@@ -39,6 +39,7 @@ public class JavaToTypescript {
     protected final static String PATH_TO_REPO_ROOT = "../";
     protected final static String DOT_SLASH = "__DOT_SLASHmarkerNoPackageShouldMatch__"; // ugly hack to add relative imports to AST.
     protected final static String AT_SIGN = "__AT_SIGNmarkerNoPackageShouldMatch__"; // ugly hack to add relative imports to AST.
+    protected static final String DOT_DOT = "__DOT_DOTmarkerNoPackageShouldMatch__";
 
     // List of transformers to look for in imports
     public static final TypescriptImport[] noImports = {};
@@ -244,7 +245,7 @@ public class JavaToTypescript {
                     ImportHandler handler = Arrays.stream(IMPORT_HANDLERS).filter(tc -> tc.packageName.equals(pkg) && (tc.className == null || tc.className.equals(cls))).findFirst().orElse(null);
                     if (handler == null) {
                         // final ImportDeclaration importDecl = (ImportDeclaration) importDecl.accept(this, arg); // visit in case it gets modified.
-                        Optional<String> mappedName = JavaToTypescript.this.config.getMappedNameForPackage(importDecl.getNameAsString(), moduleMap);
+                        Optional<String> mappedName = JavaToTypescript.this.config.getMappedNameForPackage(importDecl.getNameAsString(), moduleMap, n.getPackageDeclaration().map(x -> x.getNameAsString()).orElse(null));
                         if (mappedName.isEmpty()) {
                             importDecl.setAsterisk(true); // We don't know anything about it so we make a guess.
                         } else {
@@ -298,7 +299,7 @@ public class JavaToTypescript {
                 ? JavaToTypescript.DOT_SLASH + tsModule.substring(2).replaceAll("/", ".")
                 : tsModule.startsWith("@")
                 ? JavaToTypescript.AT_SIGN + tsModule.substring(1).replaceAll("/", ".")
-                : tsModule.replaceAll("/", ".");
+                : tsModule.replaceAll("\\.\\.", JavaToTypescript.DOT_DOT).replaceAll("/", ".");
     }
 
     public static String typescriptImportify(final String tsModule) {
@@ -307,7 +308,7 @@ public class JavaToTypescript {
                 ? "@" + ret.substring(JavaToTypescript.AT_SIGN.length())
                 : ret.startsWith(JavaToTypescript.DOT_SLASH)
                 ? "./" + ret.substring(JavaToTypescript.DOT_SLASH.length())
-                : ret;
+                : ret.replaceAll(JavaToTypescript.DOT_DOT, "..");
     }
 
     public static JtsConfig loadConfig(final String yamlFilePath) throws FileNotFoundException {
