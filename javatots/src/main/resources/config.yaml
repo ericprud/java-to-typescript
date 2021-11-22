@@ -10,7 +10,7 @@ moduleMaps:
   customer-db:
     srcRoot: src/main/java
     outputPath: packages/custdb/src
-    tsModule: '@javatotstest/custdb'
+    tsModule: '@custdb'
     packageMaps:
       - pkg: org.javatots.example.customerdb.models
         destPath: records

@@ -37,8 +37,8 @@ public class JavaToTypescript {
     // Path from execution root (probably the javatots module directory) to the repo root.
     protected final static String PATH_TO_REPO_ROOT = "../";
     public final static String TYPESCRIPT_FILE_EXTENSION = "ts";
-    protected final static String DOT_SLASH = "DOT_SLASHmarkerNoPackageShouldMatch"; // ugly hack to add relative imports to AST.
-    protected final static String AT_SIGN = "AT_SIGNmarkerNoPackageShouldMatch"; // ugly hack to add relative imports to AST.
+    public final static String DOT_SLASH = "__DOT_SLASHmarkerNoPackageShouldMatch__"; // ugly hack to add relative imports to AST.
+    protected final static String AT_SIGN = "__AT_SIGNmarkerNoPackageShouldMatch__"; // ugly hack to add relative imports to AST.
 
     // List of transformers to look for in imports
     public static final TypescriptImport[] noImports = {};
@@ -192,14 +192,14 @@ public class JavaToTypescript {
             int iName = path.lastIndexOf('.');
             final String pkg = iName == -1 ? "" : path.substring(0, iName);
             final String cls = path.substring(iName + 1);
-            if (pkg.equals(this.DOT_SLASH)) {
-                printer.println("import { " + cls + " } from '" + "./" + cls + "';");
+            if (pkg.startsWith(this.DOT_SLASH)) {
+                printer.println("import { " + cls + " } from '" + "./" + typescriptImportify(pkg.substring(this.DOT_SLASH.length())) + "';");
             } else if (pkg.startsWith(this.AT_SIGN)) {
                 printer.println("import { " + cls + " } from '" + "@" + typescriptImportify(pkg.substring(this.AT_SIGN.length())) + "';");
             } else if (this.config.unknownImportTemplate != null) {
                 // check importDecl.isStatic()
                 if (importDecl.isAsterisk()) {
-                    printer.println("import * as " + cls + "  from '" + pkg + "';");
+                    printer.println("import * as " + cls + " from '" + pkg + "';");
                 } else {
                     printer.println("import { " + cls + " } from '" + pkg + "';");
                 }
@@ -277,7 +277,9 @@ public class JavaToTypescript {
                     if (handler == null) {
                         // final ImportDeclaration importDecl = (ImportDeclaration) importDecl.accept(this, arg); // visit in case it gets modified.
                         Optional<String> mappedName = JavaToTypescript.this.config.getMappedNameForPackage(importDecl.getNameAsString(), moduleMap);
-                        if (!mappedName.isEmpty()) {
+                        if (mappedName.isEmpty()) {
+                            importDecl.setAsterisk(true); // We don't know anything about it so we make a guess.
+                        } else {
                             importDecl.setName(mappedName.get() + '.' + cls);
                         }
                         imports.add(importDecl);
@@ -299,7 +301,7 @@ public class JavaToTypescript {
 
                 // Add imports for referenced siblings in current package.
                 for (String s : referencedSiblings) {
-                    imports.add(new ImportDeclaration(JavaToTypescript.this.DOT_SLASH + "." + s, false, false));
+                    imports.add(new ImportDeclaration(JavaToTypescript.this.DOT_SLASH + s + "." + s, false, false));
                 }
 
                 // Update imports with above changes
