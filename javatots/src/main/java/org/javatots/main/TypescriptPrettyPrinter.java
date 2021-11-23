@@ -3,9 +3,7 @@ package org.javatots.main;
 import com.github.javaparser.ast.*;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.comments.Comment;
-import com.github.javaparser.ast.expr.AnnotationExpr;
-import com.github.javaparser.ast.expr.Name;
-import com.github.javaparser.ast.expr.VariableDeclarationExpr;
+import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.nodeTypes.NodeWithVariables;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.type.ArrayType;
@@ -341,31 +339,11 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
                 final int slot = TYPESCRIPT_MODIFIER_SLOTS.get(keyword);
                 tsModifiers[slot] = representation;
             }
-            if (true) {
-                String tsText = Arrays.stream(tsModifiers)
-                        .filter(s -> s != null)
-                        .collect(Collectors.joining(" "));
-                if (tsText.length() > 0)
-                    printer.print( tsText + " ");
-            } else {
-                Set<Modifier.Keyword> keywords = modifiers.stream().map(Modifier::getKeyword).collect(Collectors.toSet());
-                String tsQualifier = this.inMethodParameter ? "readonly" : "const";
-                this.printer.print(modifiers
-                        .stream()
-                        .map(Modifier::getKeyword)
-                        .map(Modifier.Keyword::asString)
-                        .filter(
-                                s -> this.inMethod || !s.equals("final") // https://www.typescriptlang.org/play told me "A class member cannot have the 'const' keyword."
-                        )
-                        .map(
-                                s -> s.equals("final")
-                                        ? tsQualifier
-                                        : s
-                        )
-                        .collect(Collectors.joining(" "))
-                        + " "
-                );
-            }
+            String tsText = Arrays.stream(tsModifiers)
+                    .filter(s -> s != null)
+                    .collect(Collectors.joining(" "));
+            if (tsText.length() > 0)
+                printer.print( tsText + " ");
         }
 
     }
@@ -491,6 +469,27 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         this.printer.print(" ");
         n.getBody().accept(this, arg);
         this.inMethod = false;
+    }
+
+    @Override
+    public void visit(final BinaryExpr n, final Void arg) {
+        this.printOrphanCommentsBeforeThisChildNode(n);
+        this.printComment(n.getComment(), arg);
+        n.getLeft().accept(this, arg);
+        if (this.getOption(DefaultPrinterConfiguration.ConfigOption.SPACE_AROUND_OPERATORS).isPresent()) {
+            this.printer.print(" ");
+        }
+
+        if (n.getOperator().equals(BinaryExpr.Operator.EQUALS)) {
+            this.printer.print("===");
+        } else {
+            this.printer.print(n.getOperator().asString());
+        }
+        if (this.getOption(DefaultPrinterConfiguration.ConfigOption.SPACE_AROUND_OPERATORS).isPresent()) {
+            this.printer.print(" ");
+        }
+
+        n.getRight().accept(this, arg);
     }
 
     private void printOrphanCommentsBeforeThisChildNode(final Node node) {

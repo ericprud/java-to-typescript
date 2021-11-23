@@ -1,5 +1,6 @@
 package org.javatots.transformers;
 
+import com.github.javaparser.ast.expr.BinaryExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
@@ -52,42 +53,52 @@ public class JavaCoreTypesVisitor extends ModifierVisitor<Void> {
      * @return replacement node
      */
     public Visitable visit(final MethodCallExpr n, final Void arg) {
-        n.getScope().ifPresent(functionScope -> {
-            functionScope.ifFieldAccessExpr(output -> {
-                Expression system = output.getScope();
-                output.getScope().ifNameExpr(matchSystem -> {
-                    if (matchSystem.getNameAsString().equals("System")) {
-                        String consoleFunction = null;
-                        String unixName = null;
-                        switch (output.getName().asString()) {
-                            case "out":
-                                consoleFunction = "log";
-                                unixName = "stdout";
-                                break;
-                            case "error":
-                                consoleFunction = "err";
-                                unixName = "stderr";
-                                break;
-                        }
-                        if (unixName != null) {
-                            switch (n.getNameAsString()) {
-                                case "println":
-                                    // set a new scope
-                                    n.setScope(new NameExpr("console"));
-                                    n.setName(consoleFunction);
+        if (n.getNameAsString().equals("equals")) {
+            if (!n.getScope().isEmpty()) {
+                final BinaryExpr equalsOp = new BinaryExpr(n.getScope().get(), n.getArgument(0), BinaryExpr.Operator.EQUALS);
+                return equalsOp;
+            } else {
+                System.out.println("no scope for " + n.toString());
+                return super.visit(n, arg);
+            }
+        } else {
+            n.getScope().ifPresent(functionScope -> {
+                functionScope.ifFieldAccessExpr(output -> {
+                    Expression system = output.getScope();
+                    output.getScope().ifNameExpr(matchSystem -> {
+                        if (matchSystem.getNameAsString().equals("System")) {
+                            String consoleFunction = null;
+                            String unixName = null;
+                            switch (output.getName().asString()) {
+                                case "out":
+                                    consoleFunction = "log";
+                                    unixName = "stdout";
                                     break;
-                                case "print":
-                                    // leverage the fact that we need the same scope depth
-                                    matchSystem.setName("process");
-                                    output.setName(unixName);
-                                    n.setName("write");
+                                case "error":
+                                    consoleFunction = "err";
+                                    unixName = "stderr";
                                     break;
                             }
+                            if (unixName != null) {
+                                switch (n.getNameAsString()) {
+                                    case "println":
+                                        // set a new scope
+                                        n.setScope(new NameExpr("console"));
+                                        n.setName(consoleFunction);
+                                        break;
+                                    case "print":
+                                        // leverage the fact that we need the same scope depth
+                                        matchSystem.setName("process");
+                                        output.setName(unixName);
+                                        n.setName("write");
+                                        break;
+                                }
+                            }
                         }
-                    }
+                    });
                 });
             });
-        });
-        return super.visit(n, arg);
+            return super.visit(n, arg);
+        }
     }
 }
