@@ -1,0 +1,37 @@
+inputDirectory: ../../xformativ/shapetrees-java
+outputDirectory: ../../xformativ/shapetrees-java/asTypescript
+packageTemplate: "// Corresponding shapetrees-java package: %s"
+indentation: 2
+unknownImportTemplate: "import { %s } from %s;"
+commentThrows: true
+unknownAnnotations: comment # comment, ignore, throw (everything else interpreted as throw)
+
+moduleMaps:
+  shapetrees-java-client-core:
+    srcRoot: src/main/java
+    outputPath: packages/client-core/src
+    tsModule: '@shapetrees'
+    packageMaps:
+      - pkg: com.janeirodigital.shapetrees.client.core.
+        destPath:
+  shapetrees-java-client-http:
+    srcRoot: src/main/java
+    outputPath: packages/client-http/src
+    tsModule: '@shapetrees'
+    packageMaps:
+      - pkg: com.janeirodigital.shapetrees.client.http.
+        destPath:
+  shapetrees-java-core:
+    srcRoot: src/main/java
+    outputPath: packages/core/src
+    tsModule: '@shapetrees'
+    packageMaps:
+      - pkg: com.janeirodigital.shapetrees.core.
+        destPath:
+  shapetrees-java-javahttp:
+    srcRoot: src/main/java
+    outputPath: packages/javahttp/src
+    tsModule: '@shapetrees'
+    packageMaps:
+      - pkg: com.janeirodigital.shapetrees.javahttp.
+        destPath:
