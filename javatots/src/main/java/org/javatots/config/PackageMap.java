@@ -37,8 +37,9 @@ public class PackageMap {
     }
 
     public String getPackageName(final String javaPackagepPath) {
-        return (this.destPath == null
-        ? ""
-        : this.destPath.replaceAll("/", "\\.") + '.') + javaPackagepPath.substring(getPkgPath().length() + 1);
+        String cls = javaPackagepPath.substring(getPkgPath().length() + 1);
+        return this.destPath == null
+        ? cls
+        : this.destPath.replaceAll("/", "\\.") + '.' + cls;
     }
 }

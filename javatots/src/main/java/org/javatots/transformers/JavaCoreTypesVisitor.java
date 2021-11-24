@@ -24,6 +24,7 @@ public class JavaCoreTypesVisitor extends ModifierVisitor<Void> {
         switch (n.getName().asString()) {
             case "String": n.setName("string"); break;
             case "Integer": n.setName("number"); break;
+            case "Boolean": n.setName("boolean"); break;
         }
         return super.visit(n, arg);
     }
@@ -53,7 +54,7 @@ public class JavaCoreTypesVisitor extends ModifierVisitor<Void> {
      * @return replacement node
      */
     public Visitable visit(final MethodCallExpr n, final Void arg) {
-        if (n.getNameAsString().equals("equals")) {
+        if (n.getNameAsString().equals("equals")) { // && the type is String, but type resolution fails on + operator, e.g. "f" + "oo"
             if (!n.getScope().isEmpty()) {
                 final BinaryExpr equalsOp = new BinaryExpr(n.getScope().get(), n.getArgument(0), BinaryExpr.Operator.EQUALS);
                 return equalsOp;

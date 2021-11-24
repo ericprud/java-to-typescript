@@ -37,9 +37,14 @@ public class JavaToTypescript {
     protected final static String TEST_CONFIG_PATH = "javatots/src/main/resources/config.yaml";
     // Path from execution root (probably the javatots module directory) to the repo root.
     protected final static String PATH_TO_REPO_ROOT = "../";
+
+    // Import hacks
     protected final static String DOT_SLASH = "__DOT_SLASHmarkerNoPackageShouldMatch__"; // ugly hack to add relative imports to AST.
     protected final static String AT_SIGN = "__AT_SIGNmarkerNoPackageShouldMatch__"; // ugly hack to add relative imports to AST.
     protected static final String DOT_DOT = "__DOT_DOTmarkerNoPackageShouldMatch__";
+
+    // Type hacks
+    public static final String OR_NULL = "__OR_NULLmarkerNoPackageShouldMatch__";
 
     // List of transformers to look for in imports
     public static final TypescriptImport[] noImports = {};
@@ -54,9 +59,11 @@ public class JavaToTypescript {
             new ImportHandler("lombok", null, DelombokVisitor.class.getName(), noImports),
             new ImportHandler("java.util", "List", JavaListToArrayVisitor.class.getName(), noImports),
             new ImportHandler("java.util", "Map", null, noImports),
+            new ImportHandler("java.util", "Optional", JavaUtilOptionalVisitor.class.getName(), noImports),
             new ImportHandler("java.io", "FileInputStream", JavaFileInputStreamVisitor.class.getName(), fisImports),
             new ImportHandler("java.io", "StringWriter", JavaStringWriterVisitor.class.getName(), swImports),
-            new ImportHandler("java.io", null, null, noImports)
+            new ImportHandler("java.io", null, null, noImports),
+            new ImportHandler("java.net", "URL", null, noImports)
     };
 
     // Config controls where to look for Java source and what Typescript src hierarchy to map it to
@@ -244,14 +251,18 @@ public class JavaToTypescript {
                     // Find corresponding transformer
                     ImportHandler handler = Arrays.stream(IMPORT_HANDLERS).filter(tc -> tc.packageName.equals(pkg) && (tc.className == null || tc.className.equals(cls))).findFirst().orElse(null);
                     if (handler == null) {
-                        // final ImportDeclaration importDecl = (ImportDeclaration) importDecl.accept(this, arg); // visit in case it gets modified.
-                        Optional<String> mappedName = JavaToTypescript.this.config.getMappedNameForPackage(importDecl.getNameAsString(), moduleMap, n.getPackageDeclaration().map(x -> x.getNameAsString()).orElse(null));
-                        if (mappedName.isEmpty()) {
-                            importDecl.setAsterisk(true); // We don't know anything about it so we make a guess.
+                        if (importDecl.isAsterisk()) {
+                            throw new IllegalStateException("can't yet deal with * import: " + importDecl);
                         } else {
-                            importDecl.setName(mappedName.get() + '.' + cls);
+                            // final ImportDeclaration importDecl = (ImportDeclaration) importDecl.accept(this, arg); // visit in case it gets modified.
+                            Optional<String> mappedName = JavaToTypescript.this.config.getMappedNameForPackage(importDecl.getNameAsString(), moduleMap, n.getPackageDeclaration().map(x -> x.getNameAsString()).orElse(null));
+                            if (mappedName.isEmpty()) {
+                                importDecl.setAsterisk(true); // We don't know anything about it so we make a guess.
+                            } else {
+                                importDecl.setName(mappedName.get() + '.' + cls);
+                            }
+                            imports.add(importDecl);
                         }
-                        imports.add(importDecl);
                     } else {
                         final String indexName = handler.packageName + '.' + handler.className;
                         if (!handledImports.contains(indexName)) {

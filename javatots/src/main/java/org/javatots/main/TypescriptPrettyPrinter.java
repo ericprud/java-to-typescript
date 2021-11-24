@@ -177,6 +177,21 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
     }
 
     @Override
+    public void visit(final ClassOrInterfaceType n, final Void arg) {
+        if (n.getNameAsString().equals(JavaToTypescript.OR_NULL)) {
+            Type typeArg = n.getTypeArguments()
+                    .map(n2 -> n2.get(0))
+                    .orElseThrow(
+                            () -> new IllegalArgumentException("expected nested type for Optional: " + n.asString())
+                    );
+            typeArg.accept(this, arg);
+            this.printer.print(" | null");
+        } else {
+            super.visit(n, arg);
+        }
+    }
+
+    @Override
     public void visit(final MethodDeclaration n, final Void arg) {
         this.inMethod = true;
         boolean override = false;

@@ -12,26 +12,26 @@ moduleMaps:
     outputPath: packages/client-core/src
     tsModule: '@shapetrees'
     packageMaps:
-      - pkg: com.janeirodigital.shapetrees.client.core.
+      - pkg: com.janeirodigital.shapetrees.client.core
         destPath:
   shapetrees-java-client-http:
     srcRoot: src/main/java
     outputPath: packages/client-http/src
     tsModule: '@shapetrees'
     packageMaps:
-      - pkg: com.janeirodigital.shapetrees.client.http.
+      - pkg: com.janeirodigital.shapetrees.client.http
         destPath:
   shapetrees-java-core:
     srcRoot: src/main/java
     outputPath: packages/core/src
     tsModule: '@shapetrees'
     packageMaps:
-      - pkg: com.janeirodigital.shapetrees.core.
+      - pkg: com.janeirodigital.shapetrees.core
         destPath:
   shapetrees-java-javahttp:
     srcRoot: src/main/java
     outputPath: packages/javahttp/src
     tsModule: '@shapetrees'
     packageMaps:
-      - pkg: com.janeirodigital.shapetrees.javahttp.
+      - pkg: com.janeirodigital.shapetrees.javahttp
         destPath:
