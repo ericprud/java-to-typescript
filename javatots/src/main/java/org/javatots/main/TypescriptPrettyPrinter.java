@@ -6,6 +6,7 @@ import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.nodeTypes.NodeWithVariables;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.ReferenceType;
@@ -505,6 +506,23 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         }
 
         n.getRight().accept(this, arg);
+    }
+
+    /*
+     * from: `for (Address address: Addresses)`
+     * to: `for (const address of Addresses)`
+     */
+    @Override
+    public void visit(final ForEachStmt n, final Void arg) {
+        this.printOrphanCommentsBeforeThisChildNode(n);
+        this.printComment(n.getComment(), arg);
+        this.printer.print("for (const ");
+        final VariableDeclarator entryVariable = n.getVariable().getVariable(0); // expect exactly one variable in a ForEachStmt
+        entryVariable.getName().accept(this, arg);
+        this.printer.print(" of ");
+        n.getIterable().accept(this, arg);
+        this.printer.print(") ");
+        n.getBody().accept(this, arg);
     }
 
     private void printOrphanCommentsBeforeThisChildNode(final Node node) {
