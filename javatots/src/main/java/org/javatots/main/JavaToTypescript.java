@@ -56,6 +56,7 @@ public class JavaToTypescript {
             new TypescriptImport("stream.Writable", false, false)
     };
     public static final ImportHandler[] IMPORT_HANDLERS = {
+            new ImportHandler("lombok.extern.slf4j", "Slf4j", LombokSlf4jVisitor.class.getName(), noImports),
             new ImportHandler("lombok", null, DelombokVisitor.class.getName(), noImports),
             new ImportHandler("java.util", "List", JavaListToArrayVisitor.class.getName(), noImports),
             new ImportHandler("java.util", "Map", null, noImports),
