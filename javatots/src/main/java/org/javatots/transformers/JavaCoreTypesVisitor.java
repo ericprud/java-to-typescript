@@ -25,6 +25,8 @@ public class JavaCoreTypesVisitor extends ModifierVisitor<Void> {
             case "String": n.setName("string"); break;
             case "Integer": n.setName("number"); break;
             case "Boolean": n.setName("boolean"); break;
+            case "HashMap": n.setName("Map"); break;
+            case "ArrayList": n.setName("Array"); break;
         }
         return super.visit(n, arg);
     }

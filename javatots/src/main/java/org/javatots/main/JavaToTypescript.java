@@ -60,6 +60,8 @@ public class JavaToTypescript {
             new ImportHandler("lombok", null, DelombokVisitor.class.getName(), noImports),
             new ImportHandler("java.util", "List", JavaListToArrayVisitor.class.getName(), noImports),
             new ImportHandler("java.util", "Map", null, noImports),
+            new ImportHandler("java.util", "HashMap", null, noImports),
+            new ImportHandler("java.util", "ArrayList", null, noImports),
             new ImportHandler("java.util", "Optional", JavaUtilOptionalVisitor.class.getName(), noImports),
             new ImportHandler("java.io", "FileInputStream", JavaFileInputStreamVisitor.class.getName(), fisImports),
             new ImportHandler("java.io", "StringWriter", JavaStringWriterVisitor.class.getName(), swImports),
