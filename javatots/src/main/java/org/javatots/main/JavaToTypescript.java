@@ -10,7 +10,6 @@ import com.github.javaparser.printer.configuration.DefaultConfigurationOption;
 import com.github.javaparser.printer.configuration.DefaultPrinterConfiguration;
 import com.github.javaparser.printer.configuration.Indentation;
 import com.github.javaparser.printer.configuration.PrinterConfiguration;
-import com.github.javaparser.utils.CodeGenerationUtils;
 import com.github.javaparser.utils.Log;
 import com.github.javaparser.utils.SourceRoot;
 
@@ -24,6 +23,7 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -86,7 +86,7 @@ public class JavaToTypescript {
         final String configPath = args.length > 0 ? args[0] : TEST_CONFIG_PATH;
         Log.info("Reading YAML configuration from: " + configPath);
         final JtsConfig config = loadConfig(configPath);
-        SourceRoot sourceRoot = new SourceRoot(CodeGenerationUtils.mavenModuleRoot(JavaToTypescript.class).resolve(PATH_TO_REPO_ROOT));
+        SourceRoot sourceRoot = new SourceRoot(Paths.get(config.inputDirectory));
         new JavaToTypescript(config).walkModules(sourceRoot);
     }
 
@@ -158,7 +158,7 @@ public class JavaToTypescript {
     public String transformFile(final SourceRoot sourceRoot, final String sourceFileName, final Set<String> siblings, final ModuleMap moduleMap, final PackageMap packageMap) {
 
         // apparently relative to Maven module root
-        CompilationUnit cu = sourceRoot.parse("", sourceFileName);
+        CompilationUnit cu = sourceRoot.parse("", String.valueOf(sourceRoot.getRoot().relativize(Path.of(sourceFileName))));
 
         Log.info("Porting file " + sourceFileName + ":");
         TypescriptPrettyPrinter prettyPrinter = new TypescriptPrettyPrinter(getPrinterConfiguration(), cu.getPackageDeclaration());
