@@ -5,8 +5,7 @@ import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.nodeTypes.NodeWithVariables;
-import com.github.javaparser.ast.stmt.ExpressionStmt;
-import com.github.javaparser.ast.stmt.ForEachStmt;
+import com.github.javaparser.ast.stmt.*;
 import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.ReferenceType;
@@ -469,17 +468,8 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         }
 
         this.printer.print(")");
-        if (!Utils.isNullOrEmpty(n.getThrownExceptions())) {
-            this.printer.print(" throws ");
-            i = n.getThrownExceptions().iterator();
-
-            while(i.hasNext()) {
-                ReferenceType name = (ReferenceType)i.next();
-                name.accept(this, arg);
-                if (i.hasNext()) {
-                    this.printer.print(", ");
-                }
-            }
+        if (!Utils.isNullOrEmpty(n.getThrownExceptions()) && this.onThrows != null) {
+            this.onThrows.accept(this.printer, n.getThrownExceptions());
         }
 
         this.printer.print(" ");
@@ -524,6 +514,91 @@ public class TypescriptPrettyPrinter extends DefaultPrettyPrinterVisitor {
         this.printer.print(") ");
         n.getBody().accept(this, arg);
     }
+
+    public void visit(final TryStmt n, final Void arg) {
+        this.printOrphanCommentsBeforeThisChildNode(n);
+        this.printComment(n.getComment(), arg);
+        this.printer.print("try ");
+        Iterator resources;
+        if (!n.getResources().isEmpty()) {
+            this.printer.print("(");
+            resources = n.getResources().iterator();
+
+            for(boolean first = true; resources.hasNext(); first = false) {
+                ((Expression)resources.next()).accept(this, arg);
+                if (resources.hasNext()) {
+                    this.printer.print(";");
+                    this.printer.println();
+                    if (first) {
+                        this.printer.indent();
+                    }
+                }
+            }
+
+            if (n.getResources().size() > 1) {
+                this.printer.unindent();
+            }
+
+            this.printer.print(") ");
+        }
+
+        n.getTryBlock().accept(this, arg);
+
+        this.printer.indent();
+        this.printer.reindentWithAlignToCursor();
+        printer.print(" catch (ex) {\n");
+        resources = n.getCatchClauses().iterator();
+        boolean isFirstParmeter = true;
+        while(resources.hasNext()) {
+            CatchClause c = (CatchClause)resources.next();
+            Parameter parm = c.getParameter();
+            if (isFirstParmeter) {
+                isFirstParmeter = false;
+            } else {
+                printer.print(" else");
+            }
+            printer.print(" if (");
+            Type type = parm.getType();
+            if (type.isUnionType()) {
+                NodeList<ReferenceType> elements = type.asUnionType().getElements();
+                Iterator<ReferenceType> it = elements.iterator();
+                boolean firstElement = true;
+                while(it.hasNext()) {
+                    if (firstElement) {
+                        firstElement = false;
+                    } else {
+                        printer.print(" || ");
+                    }
+                    printer.print("ex instanceof ");
+                    ReferenceType element = it.next();
+                    element.accept(this, arg);
+                }
+            } else {
+                printer.print("ex instanceof ");
+                type.accept(this, arg);
+            }
+            printer.print(") ");
+            c.getBody().accept(this, arg);
+        }
+        this.printer.unindent();
+
+        if (n.getFinallyBlock().isPresent()) {
+            this.printer.print(" finally ");
+            ((BlockStmt)n.getFinallyBlock().get()).accept(this, arg);
+        }
+
+    }
+
+/*
+    public void visit(final CatchClause n, final Void arg) {
+        this.printOrphanCommentsBeforeThisChildNode(n);
+        this.printComment(n.getComment(), arg);
+        this.printer.print(" catch (");
+        n.getParameter().accept(this, arg);
+        this.printer.print(") ");
+        n.getBody().accept(this, arg);
+    }
+*/
 
     private void printOrphanCommentsBeforeThisChildNode(final Node node) {
         if (this.getOption(DefaultPrinterConfiguration.ConfigOption.PRINT_COMMENTS).isPresent()) {
